@@ -75,6 +75,15 @@
       return;
     }
 
+    const targetMaskId = maskData.id;
+
+    function getTargetMask() {
+      if (!currentPreset || !currentPreset.profiles) return null;
+      const profile = currentPreset.profiles.find((p) => p.id === currentPreset.activeProfileId);
+      if (!profile || !profile.masks) return null;
+      return profile.masks.find((m) => m.id === targetMaskId) || profile.masks[0] || null;
+    }
+
     if (activeEditor) activeEditor.destroy();
 
     activeEditor = new MaskEditor({
@@ -83,11 +92,19 @@
       videoEl,
       initialRect: maskData.rect,
       onUpdate: (updatedRect) => {
-        maskData.rect = { ...updatedRect };
+        const target = getTargetMask();
+        if (target) {
+          target.rect = { ...updatedRect };
+        }
       },
       onSave: async (savedRect) => {
-        maskData.rect = { ...savedRect };
-        await savePreset(currentPreset);
+        const target = getTargetMask();
+        if (target) {
+          target.rect = { ...savedRect };
+        }
+        if (currentPreset) {
+          await savePreset(currentPreset);
+        }
       },
       onExit: () => {
         setEditMode(false);

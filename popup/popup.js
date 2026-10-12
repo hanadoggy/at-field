@@ -6,6 +6,7 @@
     getSettings,
     setSettings,
     savePreset,
+    updatePreset,
     deletePreset
   } = (globalThis.ATF && globalThis.ATF.STORAGE) || {};
   const { getMessage, applyI18n } = (globalThis.ATF && globalThis.ATF.I18N) || {
@@ -50,6 +51,7 @@
   let currentPreset = null;
   let isEditing = false;
   let saveTimer = null;
+  let channelDetectTimer = null;
 
   async function getActiveTab() {
     const tabsApi = (typeof browser !== 'undefined' ? browser : chrome)?.tabs;
@@ -62,19 +64,40 @@
     }
   }
 
-  async function sendMessageToTab(message) {
+  async function sendMessageToTab(message, timeoutMs = 2500) {
     if (!activeTabId) return null;
     const tabsApi = (typeof browser !== 'undefined' ? browser : chrome)?.tabs;
     if (!tabsApi) return null;
-    try {
-      return await tabsApi.sendMessage(activeTabId, message);
-    } catch (err) {
-      // Content script may not be loaded on this page
-      return null;
-    }
+
+    return new Promise((resolve) => {
+      let resolved = false;
+      const timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          resolve(null);
+        }
+      }, timeoutMs);
+
+      tabsApi.sendMessage(activeTabId, message)
+        .then((res) => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timer);
+            resolve(res);
+          }
+        })
+        .catch(() => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timer);
+            resolve(null);
+          }
+        });
+    });
   }
 
   function hideAllStates() {
+    if (channelDetectTimer) clearTimeout(channelDetectTimer);
     bannerEl.classList.add('hidden');
     stateLoading.classList.add('hidden');
     stateNoPreset.classList.add('hidden');
@@ -128,7 +151,19 @@
     if (!currentPreset) return;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(async () => {
-      await savePreset(currentPreset);
+      const channelId = currentPreset.channelId;
+      const activeProfile = currentPreset.profiles.find((p) => p.id === currentPreset.activeProfileId);
+      const currentMask = activeProfile && activeProfile.masks[0];
+      if (!currentMask) return;
+
+      await updatePreset(channelId, (latest) => {
+        latest.enabled = currentPreset.enabled;
+        const p = latest.profiles.find((pr) => pr.id === latest.activeProfileId) || latest.profiles[0];
+        if (p && p.masks[0]) {
+          p.masks[0].style = { ...currentMask.style };
+        }
+        return latest;
+      });
     }, 200);
   }
 
@@ -154,8 +189,7 @@
       if (!tab.url.includes('/watch')) {
         showBanner(getMessage('statusNotYouTube') || 'Not on a YouTube video page', '📺');
       } else {
-        hideAllStates();
-        stateLoading.classList.remove('hidden');
+        showBanner(getMessage('statusNeedReload') || 'Please refresh the page (F5) or check extension permissions', '⚠️');
       }
       return;
     }
@@ -181,6 +215,9 @@
     if (!state.channel) {
       hideAllStates();
       stateLoading.classList.remove('hidden');
+      channelDetectTimer = setTimeout(() => {
+        showBanner(getMessage('statusNeedReload') || 'Please refresh the page (F5) or check extension permissions', '⚠️');
+      }, 3000);
       return;
     }
 
@@ -238,7 +275,10 @@
   channelToggle.addEventListener('change', async () => {
     if (!currentPreset) return;
     currentPreset.enabled = channelToggle.checked;
-    await savePreset(currentPreset);
+    await updatePreset(currentPreset.channelId, (latest) => {
+      latest.enabled = channelToggle.checked;
+      return latest;
+    });
   });
 
   chipBlur.addEventListener('click', () => {
@@ -246,6 +286,9 @@
     const profile = currentPreset.profiles.find((p) => p.id === currentPreset.activeProfileId);
     if (!profile || !profile.masks[0]) return;
     profile.masks[0].style.type = 'blur';
+    if (profile.masks[0].style.opacity === 1.0) {
+      profile.masks[0].style.opacity = 0.45;
+    }
     updateStyleControls(profile.masks[0].style);
     triggerPresetSave();
   });
@@ -255,6 +298,7 @@
     const profile = currentPreset.profiles.find((p) => p.id === currentPreset.activeProfileId);
     if (!profile || !profile.masks[0]) return;
     profile.masks[0].style.type = 'solid';
+    profile.masks[0].style.opacity = 1.0;
     updateStyleControls(profile.masks[0].style);
     triggerPresetSave();
   });

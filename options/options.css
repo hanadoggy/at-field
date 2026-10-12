@@ -285,7 +285,7 @@ body {
   display: inline-block;
 }
 
-/* Rect Coordinates Inspector */
+/* Rect Coordinates Inspector / Editor */
 .rect-inspector {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -295,15 +295,43 @@ body {
   border-radius: 4px;
   font-family: monospace;
   font-size: 11px;
-  text-align: center;
 }
 
-.rect-field span {
+.rect-field {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 2px 4px;
+}
+
+.rect-field label {
   color: var(--text-muted);
+  font-weight: 600;
+  margin-right: 2px;
+  font-size: 10px;
 }
 
-.rect-field strong {
+.rect-field input {
+  width: 100%;
+  background: transparent;
+  border: none;
   color: var(--text-main);
+  font-family: monospace;
+  font-size: 11px;
+  outline: none;
+  text-align: right;
+}
+
+.rect-field input:focus {
+  color: var(--accent);
+}
+
+.rect-field span.unit {
+  color: var(--accent);
+  margin-left: 1px;
+  font-size: 10px;
 }
 
 /* Card Actions */

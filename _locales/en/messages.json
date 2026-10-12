@@ -31,6 +31,10 @@
     "message": "Detecting channel information...",
     "description": "Channel detection in progress"
   },
+  "statusNeedReload": {
+    "message": "Please refresh the page (F5) or check extension permissions",
+    "description": "Notice shown when content script does not respond or needs page reload"
+  },
   "statusNoPreset": {
     "message": "No mask set for this channel",
     "description": "No preset found for channel"

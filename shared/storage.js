@@ -8,7 +8,9 @@
     SETTINGS_KEY,
     DEFAULT_SETTINGS,
     DEFAULT_MASK_RECT,
-    MIN_MASK_SIZE
+    MIN_MASK_SIZE,
+    DEFAULT_OPACITY_SOLID,
+    DEFAULT_OPACITY_BLUR
   } = (globalThis.ATF && globalThis.ATF.CONSTANTS) || {};
 
   function getStorageArea() {
@@ -50,11 +52,24 @@
       opacity: 0.45,
       blur: 16
     };
-    if (!style) return { ...base, imageId: null };
+    const type = (style && style.type === 'solid') ? 'solid' : ((!style && base.type === 'solid') ? 'solid' : 'blur');
+    const defaultOpacity = type === 'solid'
+      ? (DEFAULT_OPACITY_SOLID !== undefined ? DEFAULT_OPACITY_SOLID : 1.0)
+      : (DEFAULT_OPACITY_BLUR !== undefined ? DEFAULT_OPACITY_BLUR : 0.45);
+
+    if (!style) {
+      return {
+        ...base,
+        type,
+        opacity: typeof base.opacity === 'number' ? base.opacity : defaultOpacity,
+        imageId: null
+      };
+    }
+
     return {
-      type: style.type === 'solid' ? 'solid' : 'blur',
+      type,
       color: typeof style.color === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(style.color) ? style.color : base.color,
-      opacity: typeof style.opacity === 'number' ? clamp(style.opacity, 0, 1) : base.opacity,
+      opacity: typeof style.opacity === 'number' ? clamp(style.opacity, 0, 1) : defaultOpacity,
       blur: typeof style.blur === 'number' ? clamp(style.blur, 0, 100) : base.blur,
       imageId: style.imageId || null
     };
@@ -198,6 +213,14 @@
     return normalized;
   }
 
+  async function updatePreset(channelId, mutatorFn) {
+    if (!channelId || typeof mutatorFn !== 'function') return null;
+    const current = await getPreset(channelId);
+    if (!current) return null;
+    const mutated = (await mutatorFn(current)) || current;
+    return await savePreset(mutated);
+  }
+
   async function deletePreset(channelId) {
     if (!channelId) return;
     const storage = getStorageArea();
@@ -278,6 +301,7 @@
     setSettings,
     getPreset,
     savePreset,
+    updatePreset,
     deletePreset,
     listPresets,
     createDefaultPreset,

@@ -2,7 +2,13 @@
   'use strict';
 
   const { getVideoBox, toPx, toRatio, clampRect } = (globalThis.ATF && globalThis.ATF.GEOMETRY) || {};
-  const { getMessage } = (globalThis.ATF && globalThis.ATF.I18N) || { getMessage: (k) => k };
+  function getEditorMessage(key, fallback) {
+    if (globalThis.ATF && globalThis.ATF.I18N && globalThis.ATF.I18N.getMessage) {
+      const msg = globalThis.ATF.I18N.getMessage(key);
+      if (msg && msg !== key) return msg;
+    }
+    return fallback;
+  }
 
   const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 
@@ -64,7 +70,7 @@
       // Create editor info banner
       this.bannerEl = document.createElement('div');
       this.bannerEl.className = 'atf-editing-banner';
-      this.bannerEl.textContent = getMessage('editingBanner') || 'Editing Mask · Drag/Resize (Esc: Cancel, Enter: Save)';
+      this.bannerEl.textContent = getEditorMessage('editingBanner', 'Editing Mask · Drag/Resize (Esc: Cancel, Enter: Save)');
       this.maskEl.appendChild(this.bannerEl);
 
       // Attach pointer listeners

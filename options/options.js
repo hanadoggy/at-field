@@ -6,7 +6,9 @@
     setSettings,
     listPresets,
     savePreset,
-    deletePreset
+    updatePreset,
+    deletePreset,
+    normalizeRect
   } = (globalThis.ATF && globalThis.ATF.STORAGE) || {};
   const { getMessage, applyI18n } = (globalThis.ATF && globalThis.ATF.I18N) || {
     getMessage: (k) => k,
@@ -117,8 +119,8 @@
     styleDot.style.backgroundColor = style.color || '#000000';
 
     const styleText = document.createElement('span');
-    const typeLabel = style.type === 'solid' ? 'Solid' : 'Blur';
-    const opacityPct = Math.round((style.opacity || 0.45) * 100);
+    const typeLabel = style.type === 'solid' ? (getMessage('styleSolid') || 'Solid') : (getMessage('styleBlur') || 'Blur');
+    const opacityPct = Math.round((style.opacity || (style.type === 'solid' ? 1.0 : 0.45)) * 100);
     styleText.textContent = `${typeLabel} (${opacityPct}%)`;
 
     styleBadge.appendChild(styleDot);
@@ -130,27 +132,63 @@
     metaRow.appendChild(styleBadge);
     metaRow.appendChild(dateSpan);
 
-    // 3. Rect Inspector
+    // 3. Rect Inspector / Editor
     const inspector = document.createElement('div');
     inspector.className = 'rect-inspector';
 
     const fields = [
-      { label: 'X: ', val: `${(rect.x * 100).toFixed(1)}%` },
-      { label: 'Y: ', val: `${(rect.y * 100).toFixed(1)}%` },
-      { label: 'W: ', val: `${(rect.w * 100).toFixed(1)}%` },
-      { label: 'H: ', val: `${(rect.h * 100).toFixed(1)}%` }
+      { key: 'x', label: 'X', val: (rect.x * 100).toFixed(1) },
+      { key: 'y', label: 'Y', val: (rect.y * 100).toFixed(1) },
+      { key: 'w', label: 'W', val: (rect.w * 100).toFixed(1) },
+      { key: 'h', label: 'H', val: (rect.h * 100).toFixed(1) }
     ];
+
+    const inputs = {};
 
     for (const f of fields) {
       const fieldDiv = document.createElement('div');
       fieldDiv.className = 'rect-field';
-      const lbl = document.createElement('span');
-      lbl.textContent = f.label;
-      const str = document.createElement('strong');
-      str.textContent = f.val;
+
+      const lbl = document.createElement('label');
+      lbl.textContent = `${f.label}:`;
+
+      const numInput = document.createElement('input');
+      numInput.type = 'number';
+      numInput.step = '0.5';
+      numInput.min = '0';
+      numInput.max = '100';
+      numInput.value = f.val;
+      inputs[f.key] = numInput;
+
+      const unitSpan = document.createElement('span');
+      unitSpan.className = 'unit';
+      unitSpan.textContent = '%';
+
       fieldDiv.appendChild(lbl);
-      fieldDiv.appendChild(str);
+      fieldDiv.appendChild(numInput);
+      fieldDiv.appendChild(unitSpan);
       inspector.appendChild(fieldDiv);
+
+      numInput.addEventListener('change', async () => {
+        const newX = parseFloat(inputs.x.value) / 100;
+        const newY = parseFloat(inputs.y.value) / 100;
+        const newW = parseFloat(inputs.w.value) / 100;
+        const newH = parseFloat(inputs.h.value) / 100;
+
+        const clamped = normalizeRect({ x: newX, y: newY, w: newW, h: newH });
+        inputs.x.value = (clamped.x * 100).toFixed(1);
+        inputs.y.value = (clamped.y * 100).toFixed(1);
+        inputs.w.value = (clamped.w * 100).toFixed(1);
+        inputs.h.value = (clamped.h * 100).toFixed(1);
+
+        await updatePreset(preset.channelId, (latest) => {
+          const prof = latest.profiles.find((p) => p.id === latest.activeProfileId) || latest.profiles[0];
+          if (prof && prof.masks[0]) {
+            prof.masks[0].rect = clamped;
+          }
+          return latest;
+        });
+      });
     }
 
     // 4. Card Actions
@@ -166,7 +204,10 @@
     toggleInput.checked = preset.enabled !== false;
     toggleInput.addEventListener('change', async () => {
       preset.enabled = toggleInput.checked;
-      await savePreset(preset);
+      await updatePreset(preset.channelId, (latest) => {
+        latest.enabled = toggleInput.checked;
+        return latest;
+      });
     });
 
     const toggleText = document.createElement('span');
@@ -237,11 +278,25 @@
     allPresets = await listPresets();
     renderPresets();
 
+    // Listen to background/tab storage changes in real time
+    const storageApi = (typeof browser !== 'undefined' ? browser : chrome)?.storage;
+    if (storageApi && storageApi.onChanged) {
+      storageApi.onChanged.addListener(async (changes, areaName) => {
+        if (areaName !== 'local') return;
+        allPresets = await listPresets();
+        renderPresets();
+      });
+    }
+
     // Default style listeners
     defTypeBlur.addEventListener('click', () => {
       defTypeBlur.classList.add('active');
       defTypeSolid.classList.remove('active');
       defBlurGroup.classList.remove('hidden');
+      if (defOpacity.value === '100') {
+        defOpacity.value = 45;
+        defOpacityDisplay.textContent = '45%';
+      }
       saveDefaultStyle();
     });
 
@@ -249,6 +304,8 @@
       defTypeSolid.classList.add('active');
       defTypeBlur.classList.remove('active');
       defBlurGroup.classList.add('hidden');
+      defOpacity.value = 100;
+      defOpacityDisplay.textContent = '100%';
       saveDefaultStyle();
     });
 

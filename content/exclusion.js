@@ -16,15 +16,9 @@
     const playerEl = document.querySelector('#movie_player');
     if (playerEl && (
       playerEl.classList.contains('ad-showing') ||
-      playerEl.classList.contains('ad-interrupting') ||
-      document.querySelector('.ytp-ad-player-overlay') ||
-      document.querySelector('.video-ads.ytp-ad-module')
+      playerEl.classList.contains('ad-interrupting')
     )) {
-      // Confirm ad is really displaying
-      const adModule = document.querySelector('.video-ads.ytp-ad-module');
-      if (playerEl.classList.contains('ad-showing') || (adModule && adModule.children.length > 0)) {
-        return 'ad';
-      }
+      return 'ad';
     }
 
     // Check for miniplayer

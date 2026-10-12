@@ -27,6 +27,9 @@
 
   const MIN_MASK_SIZE = 0.02; // Minimum 2% width / height
 
+  const DEFAULT_OPACITY_SOLID = 1.0;
+  const DEFAULT_OPACITY_BLUR = 0.45;
+
   const ATF_CONSTANTS = {
     SCHEMA_VERSION,
     CHANNEL_KEY_PREFIX,
@@ -34,7 +37,9 @@
     SETTINGS_KEY,
     DEFAULT_SETTINGS,
     DEFAULT_MASK_RECT,
-    MIN_MASK_SIZE
+    MIN_MASK_SIZE,
+    DEFAULT_OPACITY_SOLID,
+    DEFAULT_OPACITY_BLUR
   };
 
   if (typeof globalThis !== 'undefined') {

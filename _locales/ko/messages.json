@@ -31,6 +31,10 @@
     "message": "채널 정보를 확인하는 중입니다...",
     "description": "Channel detection in progress"
   },
+  "statusNeedReload": {
+    "message": "페이지를 새로고침(F5)하거나 확장 권한을 확인해주세요",
+    "description": "Notice shown when content script does not respond or needs page reload"
+  },
   "statusNoPreset": {
     "message": "이 채널에 설정된 마스크가 없습니다",
     "description": "No preset found for channel"
