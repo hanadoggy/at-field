@@ -81,3 +81,63 @@ test('geometry.clampRect ensures rect stays within [0, 1] bounds and enforces mi
   assert.equal(minClamped.w, 0.05);
   assert.equal(minClamped.h, 0.05);
 });
+
+test('geometry.getVideoBox - null or undefined rects fallback to zero box', () => {
+  const box1 = geometry.getVideoBox(null, { left: 0, top: 0, width: 100, height: 100 }, 1920, 1080);
+  assert.deepEqual(box1, { left: 0, top: 0, width: 0, height: 0 });
+
+  const box2 = geometry.getVideoBox({ left: 0, top: 0, width: 100, height: 100 }, null, 1920, 1080);
+  assert.deepEqual(box2, { left: 0, top: 0, width: 0, height: 0 });
+});
+
+test('geometry.getVideoBox - handles video container offset relative to player', () => {
+  const playerRect = { left: 50, top: 20, width: 1280, height: 720 };
+  const videoRect = { left: 80, top: 40, width: 1200, height: 675 }; // Offset: +30 left, +20 top
+  const box = geometry.getVideoBox(playerRect, videoRect, 1600, 900); // 16:9 exact match
+
+  assert.equal(box.left, 30);
+  assert.equal(box.top, 20);
+  assert.equal(box.width, 1200);
+  assert.equal(box.height, 675);
+});
+
+test('geometry.getVideoBox - zero or negative dimensions fallback safely', () => {
+  const playerRect = { left: 0, top: 0, width: 100, height: 100 };
+  const videoRect = { left: 0, top: 0, width: 0, height: -10 };
+  const box = geometry.getVideoBox(playerRect, videoRect, 1920, 1080);
+
+  assert.equal(box.width, 0);
+  assert.equal(box.height, 0);
+});
+
+test('geometry.toPx - null or undefined inputs return zero rect', () => {
+  assert.deepEqual(geometry.toPx(null, { left: 0, top: 0, width: 100, height: 100 }), { left: 0, top: 0, width: 0, height: 0 });
+  assert.deepEqual(geometry.toPx({ x: 0.1, y: 0.1, w: 0.5, h: 0.5 }, null), { left: 0, top: 0, width: 0, height: 0 });
+});
+
+test('geometry.toRatio - zero or negative box dimensions return zero rect without NaN', () => {
+  const zeroBox = { left: 0, top: 0, width: 0, height: 0 };
+  const result = geometry.toRatio({ left: 10, top: 10, width: 50, height: 50 }, zeroBox);
+  assert.deepEqual(result, { x: 0, y: 0, w: 0, h: 0 });
+
+  const nullBox = geometry.toRatio(null, zeroBox);
+  assert.deepEqual(nullBox, { x: 0, y: 0, w: 0, h: 0 });
+});
+
+test('geometry.clampRect - null rect returns default minSize rect', () => {
+  const clamped = geometry.clampRect(null, 0.05);
+  assert.deepEqual(clamped, { x: 0, y: 0, w: 0.05, h: 0.05 });
+});
+
+test('geometry.clampRect - clamps at max boundaries (x + w > 1, y + h > 1)', () => {
+  const overflow = { x: 0.9, y: 0.85, w: 0.3, h: 0.4 };
+  const clamped = geometry.clampRect(overflow, 0.02);
+
+  // w is 0.3, so x cannot exceed 1 - 0.3 = 0.7
+  assert.equal(clamped.w, 0.3);
+  assert.equal(clamped.x, 0.7);
+
+  // h is 0.4, so y cannot exceed 1 - 0.4 = 0.6
+  assert.equal(clamped.h, 0.4);
+  assert.equal(clamped.y, 0.6);
+});

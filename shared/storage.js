@@ -1,28 +1,40 @@
 (() => {
   'use strict';
 
+  let constants = (globalThis.ATF && globalThis.ATF.CONSTANTS);
+  if (!constants && typeof require === 'function') {
+    try {
+      constants = require('./constants.js');
+    } catch {}
+  }
+
   const {
-    SCHEMA_VERSION,
-    CHANNEL_KEY_PREFIX,
-    META_KEY,
-    SETTINGS_KEY,
-    DEFAULT_SETTINGS,
-    DEFAULT_MASK_RECT,
-    MIN_MASK_SIZE,
-    DEFAULT_OPACITY_SOLID,
-    DEFAULT_OPACITY_BLUR
-  } = (globalThis.ATF && globalThis.ATF.CONSTANTS) || {};
+    SCHEMA_VERSION = 1,
+    CHANNEL_KEY_PREFIX = 'ch:',
+    META_KEY = 'meta',
+    SETTINGS_KEY = 'settings',
+    DEFAULT_SETTINGS = {
+      enabled: true,
+      defaultStyle: { type: 'blur', color: '#000000', opacity: 0.45, blur: 16 }
+    },
+    DEFAULT_MASK_RECT = { x: 0.72, y: 0.55, w: 0.26, h: 0.42 },
+    MIN_MASK_SIZE = 0.02,
+    DEFAULT_OPACITY_SOLID = 1.0,
+    DEFAULT_OPACITY_BLUR = 0.45
+  } = constants || {};
 
   function getStorageArea() {
-    if (typeof browser !== 'undefined' && browser.storage && browser.storage.local) {
-      return browser.storage.local;
+    const b = (typeof browser !== 'undefined' && browser) || (typeof globalThis !== 'undefined' && globalThis.browser);
+    if (b && b.storage && b.storage.local) {
+      return b.storage.local;
     }
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+    const c = (typeof chrome !== 'undefined' && chrome) || (typeof globalThis !== 'undefined' && globalThis.chrome);
+    if (c && c.storage && c.storage.local) {
       // Wrap chrome callback API into Promise if needed
       return {
-        get: (keys) => new Promise((resolve) => chrome.storage.local.get(keys, resolve)),
-        set: (items) => new Promise((resolve) => chrome.storage.local.set(items, resolve)),
-        remove: (keys) => new Promise((resolve) => chrome.storage.local.remove(keys, resolve))
+        get: (keys) => new Promise((resolve) => c.storage.local.get(keys, resolve)),
+        set: (items) => new Promise((resolve) => c.storage.local.set(items, resolve)),
+        remove: (keys) => new Promise((resolve) => c.storage.local.remove(keys, resolve))
       };
     }
     return null;

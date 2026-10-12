@@ -6,18 +6,20 @@
   let lastNavigatedVideoDetails = null;
 
   // Listen to yt-navigate-finish to capture fresh player response before DOM settles
-  window.addEventListener('yt-navigate-finish', (event) => {
-    try {
-      // In Firefox, unwrap if wrappedJSObject exists
-      const unwrappedEvent = event.wrappedJSObject || event;
-      const response = unwrappedEvent.detail && unwrappedEvent.detail.response;
-      if (response && response.playerResponse && response.playerResponse.videoDetails) {
-        lastNavigatedVideoDetails = response.playerResponse.videoDetails;
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('yt-navigate-finish', (event) => {
+      try {
+        // In Firefox, unwrap if wrappedJSObject exists
+        const unwrappedEvent = event.wrappedJSObject || event;
+        const response = unwrappedEvent.detail && unwrappedEvent.detail.response;
+        if (response && response.playerResponse && response.playerResponse.videoDetails) {
+          lastNavigatedVideoDetails = response.playerResponse.videoDetails;
+        }
+      } catch {
+        // Ignore security or access errors
       }
-    } catch {
-      // Ignore security or access errors
-    }
-  });
+    });
+  }
 
   function getCurrentVideoId() {
     try {

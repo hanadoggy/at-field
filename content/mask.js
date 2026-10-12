@@ -1,7 +1,13 @@
 (() => {
   'use strict';
 
-  const { getVideoBox, toPx } = (globalThis.ATF && globalThis.ATF.GEOMETRY) || {};
+  let geom = (globalThis.ATF && globalThis.ATF.GEOMETRY);
+  if (!geom && typeof require === 'function') {
+    try {
+      geom = require('./geometry.js');
+    } catch {}
+  }
+  const { getVideoBox, toPx } = geom || {};
 
   function hexToRgba(hex, opacity = 1) {
     if (!hex || typeof hex !== 'string') return `rgba(0, 0, 0, ${opacity})`;
