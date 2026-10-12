@@ -29,14 +29,25 @@
 
   let playerEl = null;
   let videoEl = null;
+  let currentObservedPlayerEl = null;
+  let currentObservedVideoEl = null;
+  let globalListenersAttached = false;
   let resizeObserver = null;
   let animFrameId = null;
   let unobserveExclusions = null;
+
+  function ensurePlayerElements() {
+    if (!playerEl || !playerEl.isConnected || !videoEl || !videoEl.isConnected) {
+      return findPlayerElements();
+    }
+    return true;
+  }
 
   function schedulePositionUpdate() {
     if (animFrameId) cancelAnimationFrame(animFrameId);
     animFrameId = requestAnimationFrame(() => {
       animFrameId = null;
+      ensurePlayerElements();
       if (currentMaskEl && currentPreset && playerEl && videoEl) {
         const activeProfile = currentPreset.profiles && currentPreset.profiles.find((p) => p.id === currentPreset.activeProfileId);
         const maskData = activeProfile && activeProfile.masks && activeProfile.masks[0];
@@ -143,16 +154,16 @@
     }
 
     // Preset is active! Ensure elements
-    if (!playerEl || !videoEl) {
-      findPlayerElements();
-      if (!playerEl || !videoEl) return;
-    }
+    if (!ensurePlayerElements()) return;
 
     const activeProfile = currentPreset.profiles && currentPreset.profiles.find((p) => p.id === currentPreset.activeProfileId);
     const maskData = activeProfile && activeProfile.masks && activeProfile.masks[0];
     if (!maskData) return;
 
-    currentMaskEl = createMaskElement(playerEl, maskData.id);
+    // Create or re-attach mask element if disconnected
+    if (!currentMaskEl || !currentMaskEl.isConnected) {
+      currentMaskEl = createMaskElement(playerEl, maskData.id);
+    }
     const filterEl = currentMaskEl.querySelector('.atf-mask-filter') || currentMaskEl;
     applyMaskStyle(filterEl, maskData.style);
     updateMaskPosition(currentMaskEl, maskData.rect, playerEl, videoEl);
@@ -199,12 +210,34 @@
   function attachPlayerListeners() {
     if (!videoEl || !playerEl) return;
 
+    // 1. Global listeners: attach only once across extension lifecycle
+    if (!globalListenersAttached) {
+      document.addEventListener('fullscreenchange', schedulePositionUpdate);
+      window.addEventListener('resize', schedulePositionUpdate);
+      globalListenersAttached = true;
+    }
+
+    // 2. Element-specific listeners: skip if already attached to these exact connected elements
+    if (playerEl === currentObservedPlayerEl && videoEl === currentObservedVideoEl) {
+      return;
+    }
+
+    // Clean up previous video listeners if video element changed
+    if (currentObservedVideoEl && currentObservedVideoEl !== videoEl) {
+      currentObservedVideoEl.removeEventListener('loadedmetadata', schedulePositionUpdate);
+      currentObservedVideoEl.removeEventListener('resize', schedulePositionUpdate);
+    }
+
+    currentObservedPlayerEl = playerEl;
+    currentObservedVideoEl = videoEl;
+
     videoEl.addEventListener('loadedmetadata', schedulePositionUpdate);
     videoEl.addEventListener('resize', schedulePositionUpdate);
-    document.addEventListener('fullscreenchange', schedulePositionUpdate);
-    window.addEventListener('resize', schedulePositionUpdate);
 
-    if (!resizeObserver && typeof ResizeObserver !== 'undefined') {
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+    }
+    if (typeof ResizeObserver !== 'undefined') {
       resizeObserver = new ResizeObserver(() => {
         schedulePositionUpdate();
       });

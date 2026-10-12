@@ -71,6 +71,20 @@
     return { box, px };
   }
 
+  function insertMaskIntoPlayer(maskEl, playerEl) {
+    if (!maskEl || !playerEl) return;
+    if (maskEl.parentElement === playerEl && maskEl.isConnected) return;
+
+    const videoContainer = playerEl.querySelector('.html5-video-container');
+    if (videoContainer && videoContainer.nextSibling) {
+      playerEl.insertBefore(maskEl, videoContainer.nextSibling);
+    } else if (videoContainer) {
+      playerEl.appendChild(maskEl);
+    } else {
+      playerEl.appendChild(maskEl);
+    }
+  }
+
   /**
    * Creates or ensures a mask container inside #movie_player right after .html5-video-container.
    *
@@ -80,7 +94,10 @@
    */
   function createMaskElement(playerEl, maskId) {
     let maskEl = playerEl.querySelector(`.atf-mask[data-atf-mask-id="${maskId}"]`);
-    if (maskEl) return maskEl;
+    if (maskEl) {
+      insertMaskIntoPlayer(maskEl, playerEl);
+      return maskEl;
+    }
 
     maskEl = document.createElement('div');
     maskEl.className = 'atf-mask';
@@ -91,16 +108,7 @@
     filterEl.className = 'atf-mask-filter';
     maskEl.appendChild(filterEl);
 
-    // Insert right after .html5-video-container to stay below control bars
-    const videoContainer = playerEl.querySelector('.html5-video-container');
-    if (videoContainer && videoContainer.nextSibling) {
-      playerEl.insertBefore(maskEl, videoContainer.nextSibling);
-    } else if (videoContainer) {
-      playerEl.appendChild(maskEl);
-    } else {
-      playerEl.appendChild(maskEl);
-    }
-
+    insertMaskIntoPlayer(maskEl, playerEl);
     return maskEl;
   }
 
@@ -122,6 +130,7 @@
     applyMaskStyle,
     updateMaskPosition,
     createMaskElement,
+    insertMaskIntoPlayer,
     removeAllMasks
   };
 

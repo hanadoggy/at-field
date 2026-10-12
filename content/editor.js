@@ -46,6 +46,8 @@
       this.boundPreventNative = (e) => e.stopPropagation();
 
       this.saveDebounceTimer = null;
+      this.moveAnimFrameId = null;
+      this.pendingPointerPoint = null;
       this.handlesContainer = null;
       this.bannerEl = null;
 
@@ -129,8 +131,21 @@
       e.preventDefault();
       e.stopPropagation();
 
-      const dx = e.clientX - this.dragStartPoint.x;
-      const dy = e.clientY - this.dragStartPoint.y;
+      this.pendingPointerPoint = { x: e.clientX, y: e.clientY };
+
+      if (!this.moveAnimFrameId) {
+        this.moveAnimFrameId = requestAnimationFrame(() => {
+          this.moveAnimFrameId = null;
+          this.applyPointerMove();
+        });
+      }
+    }
+
+    applyPointerMove() {
+      if (!this.isDragging || !this.pendingPointerPoint || !this.dragStartPoint || !this.dragStartPx || !this.currentBox) return;
+
+      const dx = this.pendingPointerPoint.x - this.dragStartPoint.x;
+      const dy = this.pendingPointerPoint.y - this.dragStartPoint.y;
 
       let { left, top, width, height } = this.dragStartPx;
 
@@ -176,10 +191,17 @@
       e.preventDefault();
       e.stopPropagation();
 
+      if (this.moveAnimFrameId) {
+        cancelAnimationFrame(this.moveAnimFrameId);
+        this.moveAnimFrameId = null;
+      }
+      this.applyPointerMove();
+
       this.isDragging = false;
       this.dragMode = null;
       this.dragStartPoint = null;
       this.dragStartPx = null;
+      this.pendingPointerPoint = null;
 
       try {
         this.maskEl.releasePointerCapture(e.pointerId);
@@ -202,6 +224,17 @@
     }
 
     onKeyDown(e) {
+      // 1. Allow browser and system modifier combinations (Cmd+C, Ctrl+F, Alt+Tab, etc.)
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        return;
+      }
+
+      // 2. Allow typing in input fields, textareas, or contenteditable elements
+      const target = e.target;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
       // Escape: Cancel and rollback to initial rect
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -248,6 +281,10 @@
 
     destroy() {
       if (this.saveDebounceTimer) clearTimeout(this.saveDebounceTimer);
+      if (this.moveAnimFrameId) {
+        cancelAnimationFrame(this.moveAnimFrameId);
+        this.moveAnimFrameId = null;
+      }
 
       this.maskEl.removeEventListener('pointerdown', this.boundOnPointerDown);
       this.maskEl.removeEventListener('click', this.boundPreventNative);
