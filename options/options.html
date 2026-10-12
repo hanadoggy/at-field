@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="optionsTitle">A.T.Field Settings & Presets</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-container">
+    <!-- Header -->
+    <header class="options-header">
+      <div class="brand">
+        <img src="../icons/icon.svg" alt="A.T.Field" class="brand-icon">
+        <h1 class="brand-title" data-i18n="optionsTitle">A.T.Field Settings & Presets</h1>
+      </div>
+      <div class="header-count" id="summary-count">
+        0 channels registered
+      </div>
+    </header>
+
+    <!-- Global Defaults Section -->
+    <section class="section-card">
+      <h2 class="section-title" data-i18n="globalSettingsTitle">Global Default Style</h2>
+      <div class="settings-grid">
+        <div class="setting-item">
+          <label class="item-label" data-i18n="styleType">Mask Style</label>
+          <div class="segmented-control mini">
+            <button type="button" class="segment-btn active" id="def-type-blur" data-i18n="styleBlur">Blur</button>
+            <button type="button" class="segment-btn" id="def-type-solid" data-i18n="styleSolid">Solid Color</button>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <label class="item-label" data-i18n="maskColor">Color</label>
+          <div class="color-inline">
+            <input type="color" id="def-color" value="#000000">
+            <span class="mono-text" id="def-color-hex">#000000</span>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="slider-header">
+            <label class="item-label" data-i18n="maskOpacity">Opacity</label>
+            <span class="mono-text" id="def-opacity-display">45%</span>
+          </div>
+          <input type="range" id="def-opacity" min="0" max="100" value="45" class="slider-range">
+        </div>
+
+        <div class="setting-item" id="def-blur-group">
+          <div class="slider-header">
+            <label class="item-label" data-i18n="maskBlur">Blur Amount</label>
+            <span class="mono-text" id="def-blur-display">16px</span>
+          </div>
+          <input type="range" id="def-blur" min="0" max="40" value="16" class="slider-range">
+        </div>
+      </div>
+    </section>
+
+    <!-- Channel Presets Section -->
+    <section class="section-card">
+      <div class="section-header-row">
+        <h2 class="section-title" data-i18n="channelPresetTitle">Channel Masks</h2>
+        <div class="search-box">
+          <input type="text" id="search-input" data-i18n-placeholder="searchPlaceholder" placeholder="Search channels...">
+        </div>
+      </div>
+
+      <div id="presets-list" class="presets-grid">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <div id="empty-state" class="empty-state hidden">
+        <p class="empty-text" data-i18n="noSavedPresets">No saved channel masks yet.</p>
+      </div>
+    </section>
+  </div>
+
+  <script src="../shared/constants.js"></script>
+  <script src="../shared/messages.js"></script>
+  <script src="../shared/storage.js"></script>
+  <script src="../shared/i18n.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

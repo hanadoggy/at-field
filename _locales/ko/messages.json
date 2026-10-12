@@ -1,0 +1,135 @@
+{
+  "extName": {
+    "message": "A.T.Field",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "유튜브 영상에 포함된 채팅창 오버레이를 가려주는 확장 기능",
+    "description": "Extension description"
+  },
+  "statusGlobalDisabled": {
+    "message": "A.T.Field 기능이 꺼져 있습니다",
+    "description": "Global disabled state text"
+  },
+  "statusNotYouTube": {
+    "message": "유튜브 동영상 재생 페이지가 아닙니다",
+    "description": "Active tab is not youtube"
+  },
+  "statusExcludedAd": {
+    "message": "광고 재생 중에는 마스크가 숨겨집니다",
+    "description": "Excluded status ad"
+  },
+  "statusExcludedMiniplayer": {
+    "message": "미니플레이어 모드에서는 마스크가 숨겨집니다",
+    "description": "Excluded status miniplayer"
+  },
+  "statusExcludedShorts": {
+    "message": "Shorts 영상은 지원하지 않습니다",
+    "description": "Excluded status shorts"
+  },
+  "statusDetectingChannel": {
+    "message": "채널 정보를 확인하는 중입니다...",
+    "description": "Channel detection in progress"
+  },
+  "statusNoPreset": {
+    "message": "이 채널에 설정된 마스크가 없습니다",
+    "description": "No preset found for channel"
+  },
+  "addMaskButton": {
+    "message": "+ 이 채널에 마스크 추가하기",
+    "description": "Button to create a preset"
+  },
+  "modeView": {
+    "message": "보기 모드",
+    "description": "View mode"
+  },
+  "modeEdit": {
+    "message": "편집 모드",
+    "description": "Edit mode"
+  },
+  "channelPresetTitle": {
+    "message": "채널 마스크 설정",
+    "description": "Channel preset header"
+  },
+  "presetEnabledLabel": {
+    "message": "이 채널에서 마스크 활성화",
+    "description": "Preset enabled checkbox label"
+  },
+  "styleType": {
+    "message": "마스크 스타일",
+    "description": "Style type label"
+  },
+  "styleSolid": {
+    "message": "단색",
+    "description": "Solid mask style"
+  },
+  "styleBlur": {
+    "message": "블러",
+    "description": "Blur mask style"
+  },
+  "maskColor": {
+    "message": "배경 색상",
+    "description": "Color picker label"
+  },
+  "maskOpacity": {
+    "message": "불투명도",
+    "description": "Opacity slider label"
+  },
+  "maskBlur": {
+    "message": "블러 강도",
+    "description": "Blur radius slider label"
+  },
+  "deletePreset": {
+    "message": "마스크 삭제",
+    "description": "Delete preset button"
+  },
+  "deleteConfirm": {
+    "message": "이 채널의 마스크 설정을 삭제하시겠습니까?",
+    "description": "Delete preset confirmation"
+  },
+  "openOptions": {
+    "message": "전체 채널 관리",
+    "description": "Link to options page"
+  },
+  "editingBanner": {
+    "message": "마스크 편집 중 · 드래그하여 이동, 핸들로 크기 조절 (Esc 취소, Enter 완료)",
+    "description": "In-video editing overlay helper banner"
+  },
+  "optionsTitle": {
+    "message": "A.T.Field 설정 및 채널 관리",
+    "description": "Options page title"
+  },
+  "searchPlaceholder": {
+    "message": "채널 이름 또는 ID 검색...",
+    "description": "Channel filter search input placeholder"
+  },
+  "noSavedPresets": {
+    "message": "저장된 채널 마스크가 없습니다.",
+    "description": "Empty state in options page"
+  },
+  "globalSettingsTitle": {
+    "message": "기본 마스크 스타일",
+    "description": "Global default style section title"
+  },
+  "save": {
+    "message": "저장",
+    "description": "Save button"
+  },
+  "cancel": {
+    "message": "취소",
+    "description": "Cancel button"
+  },
+  "delete": {
+    "message": "삭제",
+    "description": "Delete button"
+  },
+  "channelCount": {
+    "message": "총 $COUNT$개 채널 등록됨",
+    "description": "Summary count of registered channels",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  }
+}

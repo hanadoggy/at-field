@@ -1,0 +1,16 @@
+{
+  "name": "at-field",
+  "version": "0.1.0",
+  "description": "YouTube in-video burnt-in chat masker Firefox extension",
+  "private": true,
+  "scripts": {
+    "start": "web-ext run",
+    "lint": "web-ext lint",
+    "test": "node --test test/**/*.test.js",
+    "build": "web-ext build --overwrite-dest",
+    "sign": "web-ext sign --channel=unlisted"
+  },
+  "devDependencies": {
+    "web-ext": "^8.4.0"
+  }
+}

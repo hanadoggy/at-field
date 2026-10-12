@@ -1,0 +1,135 @@
+{
+  "extName": {
+    "message": "A.T.Field",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Mask burnt-in chat overlays on YouTube video streams",
+    "description": "Extension description"
+  },
+  "statusGlobalDisabled": {
+    "message": "A.T.Field is currently turned off",
+    "description": "Global disabled state text"
+  },
+  "statusNotYouTube": {
+    "message": "Not on a YouTube video page",
+    "description": "Active tab is not youtube"
+  },
+  "statusExcludedAd": {
+    "message": "Mask is hidden while ads are playing",
+    "description": "Excluded status ad"
+  },
+  "statusExcludedMiniplayer": {
+    "message": "Mask is hidden in miniplayer mode",
+    "description": "Excluded status miniplayer"
+  },
+  "statusExcludedShorts": {
+    "message": "Shorts are not supported",
+    "description": "Excluded status shorts"
+  },
+  "statusDetectingChannel": {
+    "message": "Detecting channel information...",
+    "description": "Channel detection in progress"
+  },
+  "statusNoPreset": {
+    "message": "No mask set for this channel",
+    "description": "No preset found for channel"
+  },
+  "addMaskButton": {
+    "message": "+ Add Mask for This Channel",
+    "description": "Button to create a preset"
+  },
+  "modeView": {
+    "message": "View",
+    "description": "View mode"
+  },
+  "modeEdit": {
+    "message": "Edit",
+    "description": "Edit mode"
+  },
+  "channelPresetTitle": {
+    "message": "Channel Mask",
+    "description": "Channel preset header"
+  },
+  "presetEnabledLabel": {
+    "message": "Active on this channel",
+    "description": "Preset enabled checkbox label"
+  },
+  "styleType": {
+    "message": "Mask Style",
+    "description": "Style type label"
+  },
+  "styleSolid": {
+    "message": "Solid Color",
+    "description": "Solid mask style"
+  },
+  "styleBlur": {
+    "message": "Blur",
+    "description": "Blur mask style"
+  },
+  "maskColor": {
+    "message": "Color",
+    "description": "Color picker label"
+  },
+  "maskOpacity": {
+    "message": "Opacity",
+    "description": "Opacity slider label"
+  },
+  "maskBlur": {
+    "message": "Blur Amount",
+    "description": "Blur radius slider label"
+  },
+  "deletePreset": {
+    "message": "Delete Mask",
+    "description": "Delete preset button"
+  },
+  "deleteConfirm": {
+    "message": "Delete mask for this channel?",
+    "description": "Delete preset confirmation"
+  },
+  "openOptions": {
+    "message": "Manage All Channels",
+    "description": "Link to options page"
+  },
+  "editingBanner": {
+    "message": "Editing Mask · Drag to move, handles to resize (Esc to cancel, Enter to save)",
+    "description": "In-video editing overlay helper banner"
+  },
+  "optionsTitle": {
+    "message": "A.T.Field Settings & Presets",
+    "description": "Options page title"
+  },
+  "searchPlaceholder": {
+    "message": "Search channels...",
+    "description": "Channel filter search input placeholder"
+  },
+  "noSavedPresets": {
+    "message": "No saved channel masks yet.",
+    "description": "Empty state in options page"
+  },
+  "globalSettingsTitle": {
+    "message": "Global Default Style",
+    "description": "Global default style section title"
+  },
+  "save": {
+    "message": "Save",
+    "description": "Save button"
+  },
+  "cancel": {
+    "message": "Cancel",
+    "description": "Cancel button"
+  },
+  "delete": {
+    "message": "Delete",
+    "description": "Delete button"
+  },
+  "channelCount": {
+    "message": "$COUNT$ channel(s) registered",
+    "description": "Summary count of registered channels",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  }
+}

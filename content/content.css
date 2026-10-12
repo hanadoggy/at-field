@@ -1,0 +1,84 @@
+/* A.T.Field Content Mask Styles */
+
+.atf-mask {
+  position: absolute !important;
+  box-sizing: border-box !important;
+  pointer-events: none !important;
+  z-index: 25 !important; /* Above video container, below native player controls */
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  transition: opacity 0.15s ease-out;
+  overflow: visible !important;
+}
+
+.atf-mask-filter {
+  width: 100% !important;
+  height: 100% !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  border-radius: 2px;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Editing Mode */
+.atf-mask.atf-editing {
+  pointer-events: auto !important;
+  z-index: 65 !important; /* Above controls during active edit session */
+  cursor: move !important;
+  outline: 2px dashed #ff9e00 !important;
+  box-shadow: 0 0 18px rgba(255, 158, 0, 0.5) !important;
+}
+
+.atf-handles-container {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none !important;
+}
+
+.atf-handle {
+  position: absolute !important;
+  width: 10px !important;
+  height: 10px !important;
+  background-color: #ffffff !important;
+  border: 2px solid #ff7b00 !important;
+  border-radius: 2px !important;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.6) !important;
+  pointer-events: auto !important;
+  z-index: 70 !important;
+  box-sizing: border-box !important;
+}
+
+/* Handle Placements & Cursors */
+.atf-handle-nw { top: -5px; left: -5px; cursor: nwse-resize !important; }
+.atf-handle-n  { top: -5px; left: calc(50% - 5px); cursor: ns-resize !important; }
+.atf-handle-ne { top: -5px; right: -5px; cursor: nesw-resize !important; }
+.atf-handle-e  { top: calc(50% - 5px); right: -5px; cursor: ew-resize !important; }
+.atf-handle-se { bottom: -5px; right: -5px; cursor: nwse-resize !important; }
+.atf-handle-s  { bottom: -5px; left: calc(50% - 5px); cursor: ns-resize !important; }
+.atf-handle-sw { bottom: -5px; left: -5px; cursor: nesw-resize !important; }
+.atf-handle-w  { top: calc(50% - 5px); left: -5px; cursor: ew-resize !important; }
+
+/* Guide banner above mask during edit */
+.atf-editing-banner {
+  position: absolute !important;
+  bottom: calc(100% + 8px) !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: rgba(18, 18, 20, 0.92) !important;
+  color: #ffb74d !important;
+  border: 1px solid rgba(255, 158, 0, 0.5) !important;
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-weight: 500 !important;
+  border-radius: 4px !important;
+  white-space: nowrap !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+  pointer-events: none !important;
+  z-index: 75 !important;
+}
