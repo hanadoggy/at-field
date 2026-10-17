@@ -1,0 +1,111 @@
+{
+  "meta": {
+    "schemaVersion": 1,
+    "initializedAt": 1760260000000
+  },
+  "settings": {
+    "enabled": true,
+    "defaultStyle": {
+      "type": "blur",
+      "color": "#000000",
+      "opacity": 0.45,
+      "blur": 16
+    }
+  },
+  "ch:UC_channel_alpha_001": {
+    "channelId": "UC_channel_alpha_001",
+    "channelName": "Alpha Gaming Ch.",
+    "enabled": true,
+    "createdAt": 1760260100000,
+    "updatedAt": 1760260200000,
+    "activeProfileId": "p_default",
+    "profiles": [
+      {
+        "id": "p_default",
+        "name": "Default",
+        "masks": [
+          {
+            "id": "m_m6x7k8_a1b2c",
+            "rect": {
+              "x": 0.72,
+              "y": 0.55,
+              "w": 0.26,
+              "h": 0.42
+            },
+            "style": {
+              "type": "blur",
+              "color": "#000000",
+              "opacity": 0.45,
+              "blur": 16,
+              "imageId": null
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "ch:UC_channel_beta_002": {
+    "channelId": "UC_channel_beta_002",
+    "channelName": "Beta Streamer",
+    "enabled": true,
+    "createdAt": 1760260300000,
+    "updatedAt": 1760260450000,
+    "activeProfileId": "p_default",
+    "profiles": [
+      {
+        "id": "p_default",
+        "name": "Default",
+        "masks": [
+          {
+            "id": "m_m6x7n2_d3e4f",
+            "rect": {
+              "x": 0.02,
+              "y": 0.1,
+              "w": 0.25,
+              "h": 0.8
+            },
+            "style": {
+              "type": "solid",
+              "color": "#1a1a2e",
+              "opacity": 1,
+              "blur": 16,
+              "imageId": null
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "ch:UC_channel_gamma_003": {
+    "channelId": "UC_channel_gamma_003",
+    "channelName": "Gamma Archive",
+    "enabled": false,
+    "createdAt": 1760260500000,
+    "updatedAt": 1760260600000,
+    "activeProfileId": "p_default",
+    "profiles": [
+      {
+        "id": "p_default",
+        "name": "Default",
+        "masks": [
+          {
+            "id": "m_m6x7q9_g5h6i",
+            "rect": {
+              "x": 0.65,
+              "y": 0.05,
+              "w": 0.3,
+              "h": 0.9
+            },
+            "style": {
+              "type": "blur",
+              "color": "#121212",
+              "opacity": 0.6,
+              "blur": 24,
+              "imageId": null
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
