@@ -2,6 +2,7 @@ import { assert, test } from 'vitest';
 import * as storage from '../src/shared/storage';
 import type { StorageSchema } from '../src/types/schema';
 import rawFixture from './fixtures/storage-v0.1.1.json';
+import { withMockGlobals } from './helpers/mock-dom';
 
 const fixture = rawFixture as StorageSchema;
 
@@ -154,8 +155,7 @@ test('storage.createDefaultPreset - builds valid initial preset structure', () =
 
 test('storage CRUD with mock storage area', async () => {
   const mockStore: Record<string, any> = {};
-  const g = globalThis as Record<string, unknown>;
-  g.browser = {
+  const mockBrowser = {
     storage: {
       local: {
         get: async (keys: string | string[] | null) => {
@@ -174,12 +174,12 @@ test('storage CRUD with mock storage area', async () => {
         remove: async (keys: string | string[]) => {
           const arr = Array.isArray(keys) ? keys : [keys];
           for (const k of arr) delete mockStore[k];
-        }
-      }
-    }
+        },
+      },
+    },
   };
 
-  try {
+  await withMockGlobals({ browser: mockBrowser }, async () => {
     // 1. migrate
     await storage.migrate();
     assert.equal(mockStore.meta.schemaVersion, 1);
@@ -189,7 +189,9 @@ test('storage CRUD with mock storage area', async () => {
     const initialSettings = await storage.getSettings();
     assert.equal(initialSettings.enabled, true);
 
-    await storage.setSettings({ defaultStyle: { type: 'solid', color: '#112233' } });
+    await storage.setSettings({
+      defaultStyle: { type: 'solid', color: '#112233' },
+    });
     const updatedSettings = await storage.getSettings();
     assert.equal(updatedSettings.defaultStyle.type, 'solid');
     assert.equal(updatedSettings.defaultStyle.color, '#112233');
@@ -215,7 +217,10 @@ test('storage CRUD with mock storage area', async () => {
 
     // 5. listPresets
     const secondChId = 'UCsecond1234567890123456';
-    const secondPreset = storage.createDefaultPreset(secondChId, 'Second Preset');
+    const secondPreset = storage.createDefaultPreset(
+      secondChId,
+      'Second Preset'
+    );
     await storage.savePreset(secondPreset);
 
     const list = await storage.listPresets();
@@ -229,9 +234,7 @@ test('storage CRUD with mock storage area', async () => {
     assert.equal(afterDelete, null);
     const listAfterDelete = await storage.listPresets();
     assert.equal(listAfterDelete.length, 1);
-  } finally {
-    delete g.browser;
-  }
+  });
 });
 
 test('storage.normalizePreset - preserves v0.1.1 fixture presets without regression', () => {

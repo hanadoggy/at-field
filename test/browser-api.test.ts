@@ -1,16 +1,18 @@
 import { assert, test } from 'vitest';
 import { getExtensionApi, getStorageArea } from '../src/shared/browser-api';
-
-const g = globalThis as Record<string, unknown>;
+import { withMockGlobals } from './helpers/mock-dom';
 
 test('browser-api - prefers browser when available', async () => {
-  const mockLocal = {
-    get: async () => ({ foo: 'from-browser' }),
-    set: async () => {},
-    remove: async () => {},
+  const mockBrowser = {
+    storage: {
+      local: {
+        get: async () => ({ foo: 'from-browser' }),
+        set: async () => {},
+        remove: async () => {},
+      },
+    },
   };
-  g.browser = { storage: { local: mockLocal } };
-  g.chrome = {
+  const mockChrome = {
     storage: {
       local: {
         get: (_k: unknown, cb: (r: Record<string, unknown>) => void) =>
@@ -19,26 +21,26 @@ test('browser-api - prefers browser when available', async () => {
     },
   };
 
-  try {
+  await withMockGlobals({ browser: mockBrowser, chrome: mockChrome }, async () => {
     const api = getExtensionApi();
-    assert.equal(api, g.browser);
+    assert.equal<unknown>(api, mockBrowser);
 
     const area = getStorageArea();
     assert.ok(area);
     const data = await area.get('foo');
     assert.deepEqual(data, { foo: 'from-browser' });
-  } finally {
-    delete g.browser;
-    delete g.chrome;
-  }
+  });
 });
 
 test('browser-api - wraps chrome callback storage API into Promises when browser is absent', async () => {
   const store: Record<string, unknown> = { a: 1 };
-  g.chrome = {
+  const mockChrome = {
     storage: {
       local: {
-        get: (keys: string | string[] | null, cb: (r: Record<string, unknown>) => void) => {
+        get: (
+          keys: string | string[] | null,
+          cb: (r: Record<string, unknown>) => void
+        ) => {
           if (keys === null) cb({ ...store });
           else if (typeof keys === 'string') cb({ [keys]: store[keys] });
           else cb({});
@@ -56,9 +58,9 @@ test('browser-api - wraps chrome callback storage API into Promises when browser
     },
   };
 
-  try {
+  await withMockGlobals({ browser: undefined, chrome: mockChrome }, async () => {
     const api = getExtensionApi();
-    assert.equal(api, g.chrome);
+    assert.equal<unknown>(api, mockChrome);
 
     const area = getStorageArea();
     assert.ok(area);
@@ -71,14 +73,12 @@ test('browser-api - wraps chrome callback storage API into Promises when browser
 
     await area.remove('a');
     assert.equal(store.a, undefined);
-  } finally {
-    delete g.chrome;
-  }
+  });
 });
 
 test('browser-api - returns null when neither browser nor chrome exists', () => {
-  delete g.browser;
-  delete g.chrome;
-  assert.equal(getExtensionApi(), null);
-  assert.equal(getStorageArea(), null);
+  withMockGlobals({ browser: undefined, chrome: undefined }, () => {
+    assert.equal(getExtensionApi(), null);
+    assert.equal(getStorageArea(), null);
+  });
 });
