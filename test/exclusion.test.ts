@@ -1,43 +1,44 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const exclusion = require('../content/exclusion.js');
+import { assert, test } from 'vitest';
+import * as exclusion from '../src/content/exclusion';
+
+const g = globalThis as Record<string, any>;
 
 test('exclusion.getExclusionReason - detects shorts URLs', () => {
-  globalThis.window = { location: { pathname: '/shorts/xyz123' } };
-  globalThis.document = { querySelector: () => null };
+  g.window = { location: { pathname: '/shorts/xyz123' } };
+  g.document = { querySelector: () => null };
 
   try {
     assert.equal(exclusion.getExclusionReason(), 'shorts');
     assert.equal(exclusion.isExcluded(), true);
   } finally {
-    delete globalThis.window;
-    delete globalThis.document;
+    delete g.window;
+    delete g.document;
   }
 });
 
 test('exclusion.getExclusionReason - detects non-watch pages', () => {
-  globalThis.window = { location: { pathname: '/feed/subscriptions' } };
-  globalThis.document = { querySelector: () => null };
+  g.window = { location: { pathname: '/feed/subscriptions' } };
+  g.document = { querySelector: () => null };
 
   try {
     assert.equal(exclusion.getExclusionReason(), 'non-watch');
     assert.equal(exclusion.isExcluded(), true);
   } finally {
-    delete globalThis.window;
-    delete globalThis.document;
+    delete g.window;
+    delete g.document;
   }
 });
 
 test('exclusion.getExclusionReason - detects active ad overlay on movie_player', () => {
-  globalThis.window = { location: { pathname: '/watch' } };
+  g.window = { location: { pathname: '/watch' } };
 
   // 1. ad-showing
-  globalThis.document = {
-    querySelector: (sel) => {
+  g.document = {
+    querySelector: (sel: string) => {
       if (sel === '#movie_player') {
         return {
           classList: {
-            contains: (cls) => cls === 'ad-showing'
+            contains: (cls: string) => cls === 'ad-showing'
           }
         };
       }
@@ -49,18 +50,18 @@ test('exclusion.getExclusionReason - detects active ad overlay on movie_player',
     assert.equal(exclusion.getExclusionReason(), 'ad');
     assert.equal(exclusion.isExcluded(), true);
   } finally {
-    delete globalThis.window;
-    delete globalThis.document;
+    delete g.window;
+    delete g.document;
   }
 
   // 2. ad-interrupting
-  globalThis.window = { location: { pathname: '/watch' } };
-  globalThis.document = {
-    querySelector: (sel) => {
+  g.window = { location: { pathname: '/watch' } };
+  g.document = {
+    querySelector: (sel: string) => {
       if (sel === '#movie_player') {
         return {
           classList: {
-            contains: (cls) => cls === 'ad-interrupting'
+            contains: (cls: string) => cls === 'ad-interrupting'
           }
         };
       }
@@ -72,22 +73,22 @@ test('exclusion.getExclusionReason - detects active ad overlay on movie_player',
     assert.equal(exclusion.getExclusionReason(), 'ad');
     assert.equal(exclusion.isExcluded(), true);
   } finally {
-    delete globalThis.window;
-    delete globalThis.document;
+    delete g.window;
+    delete g.document;
   }
 });
 
 test('exclusion.getExclusionReason - detects miniplayer states', () => {
-  globalThis.window = { location: { pathname: '/watch' } };
+  g.window = { location: { pathname: '/watch' } };
 
   // Case 1: ytd-app with miniplayer-is-active
-  globalThis.document = {
-    querySelector: (sel) => {
+  g.document = {
+    querySelector: (sel: string) => {
       if (sel === '#movie_player') {
         return { classList: { contains: () => false } };
       }
       if (sel === 'ytd-app') {
-        return { hasAttribute: (attr) => attr === 'miniplayer-is-active' };
+        return { hasAttribute: (attr: string) => attr === 'miniplayer-is-active' };
       }
       return null;
     }
@@ -97,14 +98,14 @@ test('exclusion.getExclusionReason - detects miniplayer states', () => {
     assert.equal(exclusion.getExclusionReason(), 'miniplayer');
     assert.equal(exclusion.isExcluded(), true);
   } finally {
-    delete globalThis.window;
-    delete globalThis.document;
+    delete g.window;
+    delete g.document;
   }
 
   // Case 2: ytd-miniplayer[active] present
-  globalThis.window = { location: { pathname: '/watch' } };
-  globalThis.document = {
-    querySelector: (sel) => {
+  g.window = { location: { pathname: '/watch' } };
+  g.document = {
+    querySelector: (sel: string) => {
       if (sel === '#movie_player') {
         return { classList: { contains: () => false } };
       }
@@ -122,15 +123,15 @@ test('exclusion.getExclusionReason - detects miniplayer states', () => {
     assert.equal(exclusion.getExclusionReason(), 'miniplayer');
     assert.equal(exclusion.isExcluded(), true);
   } finally {
-    delete globalThis.window;
-    delete globalThis.document;
+    delete g.window;
+    delete g.document;
   }
 });
 
 test('exclusion.getExclusionReason - returns null on normal watch page', () => {
-  globalThis.window = { location: { pathname: '/watch' } };
-  globalThis.document = {
-    querySelector: (sel) => {
+  g.window = { location: { pathname: '/watch' } };
+  g.document = {
+    querySelector: (sel: string) => {
       if (sel === '#movie_player') {
         return { classList: { contains: () => false } };
       }
@@ -145,7 +146,7 @@ test('exclusion.getExclusionReason - returns null on normal watch page', () => {
     assert.equal(exclusion.getExclusionReason(), null);
     assert.equal(exclusion.isExcluded(), false);
   } finally {
-    delete globalThis.window;
-    delete globalThis.document;
+    delete g.window;
+    delete g.document;
   }
 });
