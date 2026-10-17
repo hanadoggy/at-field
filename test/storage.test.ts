@@ -1,7 +1,9 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-require('../shared/constants.js');
-const storage = require('../shared/storage.js');
+import { assert, test } from 'vitest';
+import * as storage from '../src/shared/storage';
+import type { StorageSchema } from '../src/types/schema';
+import rawFixture from './fixtures/storage-v0.1.1.json';
+
+const fixture = rawFixture as StorageSchema;
 
 test('storage.normalizeRect - returns default rect when given null or undefined', () => {
   const def = storage.normalizeRect(null);
@@ -51,18 +53,19 @@ test('storage.normalizePreset - upgrades flat legacy preset to profile structure
   };
 
   const normalized = storage.normalizePreset(legacy);
+  assert.ok(normalized);
   assert.equal(normalized.channelId, legacy.channelId);
   assert.equal(normalized.channelName, legacy.channelName);
   assert.equal(normalized.activeProfileId, 'p_default');
   assert.ok(Array.isArray(normalized.profiles));
   assert.equal(normalized.profiles.length, 1);
 
-  const profile = normalized.profiles[0];
+  const profile = normalized.profiles[0]!;
   assert.equal(profile.id, 'p_default');
   assert.equal(profile.masks.length, 1);
-  assert.equal(profile.masks[0].rect.x, 0.5);
-  assert.equal(profile.masks[0].style.type, 'solid');
-  assert.equal(profile.masks[0].style.color, '#ff0000');
+  assert.equal(profile.masks[0]!.rect.x, 0.5);
+  assert.equal(profile.masks[0]!.style.type, 'solid');
+  assert.equal(profile.masks[0]!.style.color, '#ff0000');
 });
 
 test('storage.normalizePreset - validates existing multi-profile structure and repairs activeProfileId', () => {
@@ -86,6 +89,7 @@ test('storage.normalizePreset - validates existing multi-profile structure and r
   };
 
   const normalized = storage.normalizePreset(preset);
+  assert.ok(normalized);
   assert.equal(normalized.activeProfileId, 'p_1'); // repaired to first profile id
 });
 
@@ -102,29 +106,30 @@ test('storage.createDefaultPreset - builds valid initial preset structure', () =
   assert.equal(preset.enabled, true);
   assert.equal(preset.activeProfileId, 'p_default');
   assert.equal(preset.profiles.length, 1);
-  assert.equal(preset.profiles[0].masks.length, 1);
-  assert.equal(preset.profiles[0].masks[0].rect.x, 0.72);
+  assert.equal(preset.profiles[0]!.masks.length, 1);
+  assert.equal(preset.profiles[0]!.masks[0]!.rect.x, 0.72);
 });
 
 test('storage CRUD with mock storage area', async () => {
-  let mockStore = {};
-  globalThis.browser = {
+  const mockStore: Record<string, any> = {};
+  const g = globalThis as Record<string, unknown>;
+  g.browser = {
     storage: {
       local: {
-        get: async (keys) => {
+        get: async (keys: string | string[] | null) => {
           if (keys === null) return { ...mockStore };
           if (typeof keys === 'string') return { [keys]: mockStore[keys] };
           if (Array.isArray(keys)) {
-            const res = {};
+            const res: Record<string, unknown> = {};
             for (const k of keys) res[k] = mockStore[k];
             return res;
           }
           return {};
         },
-        set: async (items) => {
+        set: async (items: Record<string, unknown>) => {
           Object.assign(mockStore, items);
         },
-        remove: async (keys) => {
+        remove: async (keys: string | string[]) => {
           const arr = Array.isArray(keys) ? keys : [keys];
           for (const k of arr) delete mockStore[k];
         }
@@ -163,6 +168,7 @@ test('storage CRUD with mock storage area', async () => {
       return p;
     });
     const toggled = await storage.getPreset(chId);
+    assert.ok(toggled);
     assert.equal(toggled.enabled, false);
 
     // 5. listPresets
@@ -182,6 +188,33 @@ test('storage CRUD with mock storage area', async () => {
     const listAfterDelete = await storage.listPresets();
     assert.equal(listAfterDelete.length, 1);
   } finally {
-    delete globalThis.browser;
+    delete g.browser;
+  }
+});
+
+test('storage.normalizePreset - preserves v0.1.1 fixture presets without regression', () => {
+  const channelKeys = [
+    'ch:UC_channel_alpha_001',
+    'ch:UC_channel_beta_002',
+    'ch:UC_channel_gamma_003',
+  ] as const;
+
+  for (const key of channelKeys) {
+    const raw = fixture[key];
+    assert.ok(raw);
+    const normalized = storage.normalizePreset(raw);
+    assert.ok(normalized);
+    assert.equal(normalized.channelId, raw.channelId);
+    assert.equal(normalized.channelName, raw.channelName);
+    assert.equal(normalized.enabled, raw.enabled);
+    assert.equal(normalized.activeProfileId, raw.activeProfileId);
+    assert.deepEqual(
+      normalized.profiles[0]!.masks[0]!.rect,
+      raw.profiles[0]!.masks[0]!.rect
+    );
+    assert.deepEqual(
+      normalized.profiles[0]!.masks[0]!.style,
+      raw.profiles[0]!.masks[0]!.style
+    );
   }
 });
