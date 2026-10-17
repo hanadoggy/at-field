@@ -1,5 +1,15 @@
+import { MIN_MASK_SIZE } from '../shared/constants';
 import type { ClientRectLike, PxBox } from '../types/geometry';
 import type { Rect } from '../types/schema';
+
+export function toFiniteNumber(val: unknown, fallback: number): number {
+  if (typeof val === 'number' && Number.isFinite(val)) return val;
+  if (typeof val === 'string' && val.trim() !== '') {
+    const parsed = Number(val);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+}
 
 /**
  * Computes the rendered video bounding box relative to player element.
@@ -72,10 +82,10 @@ export function toPx(
     return { left: 0, top: 0, width: 0, height: 0 };
   }
   return {
-    left: box.left + (rect.x || 0) * box.width,
-    top: box.top + (rect.y || 0) * box.height,
-    width: (rect.w || 0) * box.width,
-    height: (rect.h || 0) * box.height,
+    left: box.left + toFiniteNumber(rect.x, 0) * box.width,
+    top: box.top + toFiniteNumber(rect.y, 0) * box.height,
+    width: toFiniteNumber(rect.w, 0) * box.width,
+    height: toFiniteNumber(rect.h, 0) * box.height,
   };
 }
 
@@ -103,13 +113,15 @@ export function toRatio(
  */
 export function clampRect(
   rect: Partial<Rect> | null | undefined,
-  minSize = 0.02
+  minSize = MIN_MASK_SIZE
 ): Rect {
   if (!rect) return { x: 0, y: 0, w: minSize, h: minSize };
   const min = Math.max(0.001, Math.min(1, minSize));
-  const w = Math.max(min, Math.min(1, Number(rect.w) || min));
-  const h = Math.max(min, Math.min(1, Number(rect.h) || min));
-  const x = Math.max(0, Math.min(1 - w, Number(rect.x) || 0));
-  const y = Math.max(0, Math.min(1 - h, Number(rect.y) || 0));
+  const rawW = toFiniteNumber(rect.w, min);
+  const rawH = toFiniteNumber(rect.h, min);
+  const w = Math.max(min, Math.min(1, rawW > 0 ? rawW : min));
+  const h = Math.max(min, Math.min(1, rawH > 0 ? rawH : min));
+  const x = Math.max(0, Math.min(1 - w, toFiniteNumber(rect.x, 0)));
+  const y = Math.max(0, Math.min(1 - h, toFiniteNumber(rect.y, 0)));
   return { x, y, w, h };
 }

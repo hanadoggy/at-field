@@ -131,9 +131,13 @@ function createPresetCardElement(preset: ChannelPreset): HTMLDivElement {
     style.type === 'solid'
       ? getMessage('styleSolid') || 'Solid'
       : getMessage('styleBlur') || 'Blur';
-  const opacityPct = Math.round(
-    (style.opacity || (style.type === 'solid' ? 1.0 : 0.45)) * 100
-  );
+  const opacityVal =
+    typeof style.opacity === 'number'
+      ? style.opacity
+      : style.type === 'solid'
+        ? 1.0
+        : 0.45;
+  const opacityPct = Math.round(opacityVal * 100);
   styleText.textContent = `${typeLabel} (${opacityPct}%)`;
 
   styleBadge.appendChild(styleDot);

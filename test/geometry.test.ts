@@ -140,3 +140,14 @@ test('geometry.clampRect - clamps at max boundaries (x + w > 1, y + h > 1)', () 
   assert.equal(clamped.h, 0.4);
   assert.equal(clamped.y, 0.6);
 });
+
+test('geometry.clampRect - preserves zero x/y and handles NaN/negative dimensions', () => {
+  const zeroOrigin = geometry.clampRect({ x: 0, y: 0, w: 0.2, h: 0.2 });
+  assert.deepEqual(zeroOrigin, { x: 0, y: 0, w: 0.2, h: 0.2 });
+
+  const invalidDims = geometry.clampRect(
+    { x: Number.NaN, y: undefined, w: -0.5, h: 0 },
+    0.05
+  );
+  assert.deepEqual(invalidDims, { x: 0, y: 0, w: 0.05, h: 0.05 });
+});

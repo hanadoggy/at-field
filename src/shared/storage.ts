@@ -28,13 +28,24 @@ function clamp(val: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, val));
 }
 
+function toFiniteNumber(val: unknown, fallback: number): number {
+  if (typeof val === 'number' && Number.isFinite(val)) return val;
+  if (typeof val === 'string' && val.trim() !== '') {
+    const parsed = Number(val);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+}
+
 export function normalizeRect(rect: unknown): Rect {
   if (!rect || typeof rect !== 'object') return { ...DEFAULT_MASK_RECT };
   const r = rect as Partial<Rect>;
-  const w = clamp(Number(r.w) || DEFAULT_MASK_RECT.w, MIN_MASK_SIZE, 1);
-  const h = clamp(Number(r.h) || DEFAULT_MASK_RECT.h, MIN_MASK_SIZE, 1);
-  const x = clamp(Number(r.x) || DEFAULT_MASK_RECT.x, 0, 1 - w);
-  const y = clamp(Number(r.y) || DEFAULT_MASK_RECT.y, 0, 1 - h);
+  const rawW = toFiniteNumber(r.w, DEFAULT_MASK_RECT.w);
+  const rawH = toFiniteNumber(r.h, DEFAULT_MASK_RECT.h);
+  const w = clamp(rawW > 0 ? rawW : DEFAULT_MASK_RECT.w, MIN_MASK_SIZE, 1);
+  const h = clamp(rawH > 0 ? rawH : DEFAULT_MASK_RECT.h, MIN_MASK_SIZE, 1);
+  const x = clamp(toFiniteNumber(r.x, DEFAULT_MASK_RECT.x), 0, 1 - w);
+  const y = clamp(toFiniteNumber(r.y, DEFAULT_MASK_RECT.y), 0, 1 - h);
   return { x, y, w, h };
 }
 
@@ -169,17 +180,21 @@ function cloneDefaultSettings(): Settings {
   };
 }
 
+export function normalizeSettings(raw: unknown): Settings {
+  if (!raw || typeof raw !== 'object') return cloneDefaultSettings();
+  const stored = raw as Partial<Settings>;
+  return {
+    enabled: stored.enabled !== false,
+    defaultStyle: normalizeStyle(stored.defaultStyle),
+  };
+}
+
 export async function getSettings(): Promise<Settings> {
   const storage = getStorageArea();
   if (!storage) return cloneDefaultSettings();
   try {
     const data = await storage.get(SETTINGS_KEY);
-    const stored = data && (data[SETTINGS_KEY] as Partial<Settings> | undefined);
-    if (!stored) return cloneDefaultSettings();
-    return {
-      enabled: stored.enabled !== false,
-      defaultStyle: normalizeStyle(stored.defaultStyle),
-    };
+    return normalizeSettings(data && data[SETTINGS_KEY]);
   } catch (err) {
     console.error('[ATF] Failed to get settings:', err);
     return cloneDefaultSettings();

@@ -21,6 +21,48 @@ test('storage.normalizeRect - clamps coordinates within [0, 1] and enforces minS
   assert.ok(Math.abs(clamped.y - 0.2) < 1e-6); // clamped max (1 - 0.8)
 });
 
+test('storage.normalizeRect - preserves exact 0 coordinates without overwriting with defaults', () => {
+  const topLeft = storage.normalizeRect({ x: 0, y: 0, w: 0.25, h: 0.3 });
+  assert.equal(topLeft.x, 0);
+  assert.equal(topLeft.y, 0);
+  assert.equal(topLeft.w, 0.25);
+  assert.equal(topLeft.h, 0.3);
+
+  // Missing or non-finite fields still fall back to DEFAULT_MASK_RECT
+  const missingXY = storage.normalizeRect({ w: 0.3, h: 0.3 });
+  assert.equal(missingXY.x, 0.7); // 0.72 clamped to 1 - 0.3 = 0.7
+  assert.equal(missingXY.y, 0.55);
+  assert.equal(missingXY.w, 0.3);
+  assert.equal(missingXY.h, 0.3);
+
+  const nullish = storage.normalizeRect({
+    x: null,
+    y: '',
+    w: Number.NaN,
+    h: 0,
+  });
+  assert.deepEqual(nullish, { x: 0.72, y: 0.55, w: 0.26, h: 0.42 });
+});
+
+test('storage.normalizeSettings - normalizes raw settings and handles null/invalid payloads', () => {
+  const def = storage.normalizeSettings(null);
+  assert.equal(def.enabled, true);
+  assert.equal(def.defaultStyle.type, 'blur');
+  assert.equal(def.defaultStyle.color, '#000000');
+  assert.equal(def.defaultStyle.opacity, 0.45);
+  assert.equal(def.defaultStyle.blur, 16);
+
+  const custom = storage.normalizeSettings({
+    enabled: false,
+    defaultStyle: { type: 'solid', color: 'not-a-hex', opacity: 0, blur: 500 },
+  });
+  assert.equal(custom.enabled, false);
+  assert.equal(custom.defaultStyle.type, 'solid');
+  assert.equal(custom.defaultStyle.color, '#000000');
+  assert.equal(custom.defaultStyle.opacity, 0);
+  assert.equal(custom.defaultStyle.blur, 100);
+});
+
 test('storage.normalizeStyle - defaults and opacity handling for solid vs blur', () => {
   const blurStyle = storage.normalizeStyle({ type: 'blur', color: '#123456' });
   assert.equal(blurStyle.type, 'blur');

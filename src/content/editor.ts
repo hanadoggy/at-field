@@ -44,12 +44,14 @@ export class MaskEditor {
   private pendingPointerPoint: { x: number; y: number } | null = null;
   private handlesContainer: HTMLDivElement | null = null;
   private bannerEl: HTMLDivElement | null = null;
+  private isCommitting = false;
 
   private boundPreventNative = (e: Event): void => {
     e.stopPropagation();
   };
 
   private boundOnPointerDown = (e: PointerEvent): void => {
+    if (this.isCommitting) return;
     // Left click only
     if (e.button !== 0) return;
     e.preventDefault();
@@ -133,6 +135,8 @@ export class MaskEditor {
   };
 
   private boundOnKeyDown = (e: KeyboardEvent): void => {
+    if (this.isCommitting) return;
+
     // 1. Allow browser and system modifier combinations (Cmd+C, Ctrl+F, Alt+Tab, etc.)
     if (e.ctrlKey || e.metaKey || e.altKey) {
       return;
@@ -153,10 +157,7 @@ export class MaskEditor {
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
-      this.currentRect = { ...this.initialRect };
-      this.refresh();
-      if (this.onSave) this.onSave(this.currentRect);
-      if (this.onExit) this.onExit();
+      void this.commitAndExit(this.initialRect);
       return;
     }
 
@@ -164,8 +165,7 @@ export class MaskEditor {
     if (e.key === 'Enter') {
       e.preventDefault();
       e.stopPropagation();
-      if (this.onSave) this.onSave(this.currentRect);
-      if (this.onExit) this.onExit();
+      void this.commitAndExit(this.currentRect);
       return;
     }
 
@@ -181,6 +181,9 @@ export class MaskEditor {
 
       this.currentRect = clampRect(this.currentRect);
       this.refresh();
+      if (this.onUpdate) {
+        this.onUpdate(this.currentRect);
+      }
       this.triggerDebouncedSave();
       return;
     }
@@ -316,9 +319,53 @@ export class MaskEditor {
     }
   }
 
+  private cancelPendingWork(): void {
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+      this.saveDebounceTimer = null;
+    }
+    if (this.moveAnimFrameId) {
+      cancelAnimationFrame(this.moveAnimFrameId);
+      this.moveAnimFrameId = null;
+    }
+    if (this.isDragging) {
+      this.isDragging = false;
+      this.dragMode = null;
+      this.dragStartPoint = null;
+      this.dragStartPx = null;
+      this.pendingPointerPoint = null;
+      window.removeEventListener('pointermove', this.boundOnPointerMove, true);
+      window.removeEventListener('pointerup', this.boundOnPointerUp, true);
+      window.removeEventListener('pointercancel', this.boundOnPointerUp, true);
+    }
+  }
+
+  private async commitAndExit(targetRect: Rect): Promise<void> {
+    if (this.isCommitting) return;
+    this.isCommitting = true;
+
+    this.cancelPendingWork();
+    this.currentRect = { ...targetRect };
+    this.refresh();
+
+    if (this.onUpdate) {
+      this.onUpdate(this.currentRect);
+    }
+    try {
+      if (this.onSave) {
+        await this.onSave(this.currentRect);
+      }
+    } finally {
+      if (this.onExit) {
+        this.onExit();
+      }
+    }
+  }
+
   private triggerDebouncedSave(): void {
     if (this.saveDebounceTimer) clearTimeout(this.saveDebounceTimer);
     this.saveDebounceTimer = setTimeout(async () => {
+      this.saveDebounceTimer = null;
       if (this.onSave) {
         await this.onSave(this.currentRect);
       }
@@ -326,11 +373,7 @@ export class MaskEditor {
   }
 
   destroy(): void {
-    if (this.saveDebounceTimer) clearTimeout(this.saveDebounceTimer);
-    if (this.moveAnimFrameId) {
-      cancelAnimationFrame(this.moveAnimFrameId);
-      this.moveAnimFrameId = null;
-    }
+    this.cancelPendingWork();
 
     this.maskEl.removeEventListener('pointerdown', this.boundOnPointerDown);
     this.maskEl.removeEventListener('click', this.boundPreventNative);

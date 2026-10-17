@@ -17,6 +17,8 @@ import {
   getPreset,
   getSettings,
   migrate,
+  normalizePreset,
+  normalizeSettings,
   savePreset,
 } from '../../shared/storage';
 import type { ChannelInfo } from '../../types/channel';
@@ -38,12 +40,14 @@ export default defineContentScript({
   main() {
     initChannelTracking();
 
-    let currentSettings: Settings | null | undefined = null;
+    let currentSettings: Settings | null = null;
     let currentChannel: ChannelInfo | null = null;
-    let currentPreset: ChannelPreset | null | undefined = null;
+    let currentPreset: ChannelPreset | null = null;
     let isEditMode = false;
     let activeEditor: MaskEditor | null = null;
     let currentMaskEl: HTMLElement | null = null;
+    let navGeneration = 0;
+    let syncGeneration = 0;
 
     let playerEl: HTMLElement | null = null;
     let videoEl: HTMLVideoElement | null = null;
@@ -161,6 +165,9 @@ export default defineContentScript({
     }
 
     async function sync(): Promise<void> {
+      const myNavGen = navGeneration;
+      const mySyncGen = ++syncGeneration;
+
       const isWatch = window.location.pathname === '/watch';
       const exclusionReason = getExclusionReason();
 
@@ -183,8 +190,19 @@ export default defineContentScript({
         return;
       }
 
+      const targetChannelId = currentChannel.channelId;
+
       // Load or reload preset
-      currentPreset = await getPreset(currentChannel.channelId);
+      const loadedPreset = await getPreset(targetChannelId);
+      if (
+        myNavGen !== navGeneration ||
+        mySyncGen !== syncGeneration ||
+        !currentChannel ||
+        currentChannel.channelId !== targetChannelId
+      ) {
+        return;
+      }
+      currentPreset = loadedPreset;
 
       // If channel preset doesn't exist or is disabled
       if (!currentPreset || !currentPreset.enabled) {
@@ -226,6 +244,8 @@ export default defineContentScript({
     }
 
     async function handleNavigation(): Promise<void> {
+      const myNavGen = ++navGeneration;
+
       // Immediately clear mask when navigation starts/finishes to prevent flicker
       if (playerEl) removeAllMasks(playerEl);
       currentMaskEl = null;
@@ -239,6 +259,9 @@ export default defineContentScript({
 
       // Resolve channel with retries
       const resolved = await resolveChannel();
+      if (myNavGen !== navGeneration) {
+        return;
+      }
       currentChannel = resolved;
       await sync();
     }
@@ -313,18 +336,20 @@ export default defineContentScript({
       let shouldSync = false;
 
       if (changes[SETTINGS_KEY]) {
-        currentSettings = changes[SETTINGS_KEY].newValue as
-          | Settings
-          | undefined;
+        currentSettings = normalizeSettings(changes[SETTINGS_KEY].newValue);
         shouldSync = true;
       }
 
       if (currentChannel) {
         const channelKey = `${CHANNEL_KEY_PREFIX}${currentChannel.channelId}`;
         if (changes[channelKey]) {
-          currentPreset = changes[channelKey].newValue as
-            | ChannelPreset
-            | undefined;
+          const rawPreset = changes[channelKey].newValue;
+          currentPreset = rawPreset
+            ? normalizePreset(
+                rawPreset,
+                currentSettings ? currentSettings.defaultStyle : undefined
+              )
+            : null;
           shouldSync = true;
         }
       }
@@ -413,6 +438,8 @@ export default defineContentScript({
 
       // SPA Navigation Listeners
       window.addEventListener('yt-navigate-start', () => {
+        navGeneration++;
+        if (isEditMode) setEditMode(false);
         if (playerEl) removeAllMasks(playerEl);
         currentMaskEl = null;
       });
