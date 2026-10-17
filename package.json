@@ -1,6 +1,6 @@
 {
   "name": "at-field",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "YouTube in-video burnt-in chat masker Firefox extension",
   "private": true,
   "scripts": {
