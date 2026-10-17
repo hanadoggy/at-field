@@ -1,10 +1,8 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-require('../content/geometry.js');
-const mask = require('../content/mask.js');
+import { assert, test } from 'vitest';
+import * as mask from '../src/content/mask';
 
 test('mask.applyMaskStyle - solid style sets background color with opacity and clears blur', () => {
-  const el = { style: {} };
+  const el = { style: {} as Record<string, string> } as unknown as HTMLElement;
   mask.applyMaskStyle(el, {
     type: 'solid',
     color: '#ff0000',
@@ -13,11 +11,11 @@ test('mask.applyMaskStyle - solid style sets background color with opacity and c
 
   assert.equal(el.style.backgroundColor, 'rgba(255, 0, 0, 0.8)');
   assert.equal(el.style.backdropFilter, 'none');
-  assert.equal(el.style.webkitBackdropFilter, 'none');
+  assert.equal((el.style as unknown as Record<string, string>).webkitBackdropFilter, 'none');
 });
 
 test('mask.applyMaskStyle - blur style sets backdrop filter and semi-transparent tint', () => {
-  const el = { style: {} };
+  const el = { style: {} as Record<string, string> } as unknown as HTMLElement;
   mask.applyMaskStyle(el, {
     type: 'blur',
     color: '#000000',
@@ -26,20 +24,20 @@ test('mask.applyMaskStyle - blur style sets backdrop filter and semi-transparent
   });
 
   assert.equal(el.style.backdropFilter, 'blur(20px)');
-  assert.equal(el.style.webkitBackdropFilter, 'blur(20px)');
+  assert.equal((el.style as unknown as Record<string, string>).webkitBackdropFilter, 'blur(20px)');
   assert.equal(el.style.backgroundColor, 'rgba(0, 0, 0, 0.45)');
 });
 
 test('mask.updateMaskPosition - calculates and sets pixel coordinates', () => {
-  const maskEl = { style: {} };
+  const maskEl = { style: {} as Record<string, string> } as unknown as HTMLElement;
   const playerEl = {
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 720 })
-  };
+  } as unknown as HTMLElement;
   const videoEl = {
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 720 }),
     videoWidth: 1920,
     videoHeight: 1080
-  };
+  } as unknown as HTMLVideoElement;
 
   const rect = { x: 0.5, y: 0.5, w: 0.25, h: 0.25 };
   mask.updateMaskPosition(maskEl, rect, playerEl, videoEl);
@@ -52,24 +50,24 @@ test('mask.updateMaskPosition - calculates and sets pixel coordinates', () => {
 
 test('mask.insertMaskIntoPlayer - places mask right after html5-video-container', () => {
   const videoContainer = { nextSibling: { name: 'controls' } };
-  let insertedElement = null;
-  let insertedBefore = null;
+  let insertedElement: unknown = null;
+  let insertedBefore: unknown = null;
 
   const playerEl = {
-    querySelector: (sel) => sel === '.html5-video-container' ? videoContainer : null,
-    insertBefore: (el, ref) => {
+    querySelector: (sel: string) => sel === '.html5-video-container' ? videoContainer : null,
+    insertBefore: (el: unknown, ref: unknown) => {
       insertedElement = el;
       insertedBefore = ref;
     },
-    appendChild: (el) => {
+    appendChild: (el: unknown) => {
       insertedElement = el;
     }
-  };
+  } as unknown as HTMLElement;
 
   const mockMask = {
     parentElement: null,
     isConnected: false
-  };
+  } as unknown as HTMLElement;
 
   mask.insertMaskIntoPlayer(mockMask, playerEl);
 
