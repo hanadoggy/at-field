@@ -1,6 +1,5 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const geometry = require('../content/geometry.js');
+import { assert, test } from 'vitest';
+import * as geometry from '../src/content/geometry';
 
 test('geometry.getVideoBox - exact aspect ratio match (16:9)', () => {
   const playerRect = { left: 100, top: 50, width: 1280, height: 720 };
