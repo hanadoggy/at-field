@@ -2,9 +2,116 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>__MSG_extName__</title>
+  <link rel="stylesheet" href="./style.css">
 </head>
 <body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="popup-header">
+      <div class="brand">
+        <img src="/icons/icon.svg" alt="A.T.Field" class="brand-icon">
+        <h1 class="brand-title" data-i18n="extName">A.T.Field</h1>
+      </div>
+      <div class="global-toggle-wrapper">
+        <label class="switch" title="Global Enable/Disable">
+          <input type="checkbox" id="global-toggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </header>
+
+    <!-- Main Content State Areas -->
+    <main class="popup-main">
+      <!-- Info State Banner (shown for non-watch, excluded, or disabled) -->
+      <div id="state-banner" class="state-banner hidden">
+        <div class="state-icon" id="banner-icon">ℹ️</div>
+        <p class="state-text" id="banner-text"></p>
+      </div>
+
+      <!-- Channel Detection Loading -->
+      <div id="state-loading" class="state-card hidden">
+        <div class="spinner"></div>
+        <p class="card-text" data-i18n="statusDetectingChannel">Detecting channel information...</p>
+      </div>
+
+      <!-- No Preset State -->
+      <div id="state-no-preset" class="state-card hidden">
+        <div class="channel-badge">
+          <span class="channel-name" id="no-preset-channel-name">Channel</span>
+        </div>
+        <p class="card-text" data-i18n="statusNoPreset">No mask set for this channel</p>
+        <button id="btn-add-mask" class="btn btn-primary" data-i18n="addMaskButton">+ Add Mask for This Channel</button>
+      </div>
+
+      <!-- Active Preset State -->
+      <div id="state-has-preset" class="state-card hidden">
+        <div class="channel-header-row">
+          <div class="channel-info">
+            <span class="channel-name" id="has-preset-channel-name">Channel</span>
+          </div>
+          <label class="channel-enable-label">
+            <input type="checkbox" id="channel-toggle" checked>
+            <span class="checkbox-custom"></span>
+            <span class="label-text" data-i18n="presetEnabledLabel">Active</span>
+          </label>
+        </div>
+
+        <!-- Mode Selector: View / Edit -->
+        <div class="segmented-control">
+          <button type="button" class="segment-btn active" id="btn-mode-view" data-i18n="modeView">View</button>
+          <button type="button" class="segment-btn" id="btn-mode-edit" data-i18n="modeEdit">Edit</button>
+        </div>
+
+        <!-- Style Controls -->
+        <div class="controls-panel">
+          <div class="control-row">
+            <label class="control-label" data-i18n="styleType">Mask Style</label>
+            <div class="style-type-buttons">
+              <button type="button" class="btn-chip active" id="chip-blur" data-i18n="styleBlur">Blur</button>
+              <button type="button" class="btn-chip" id="chip-solid" data-i18n="styleSolid">Solid Color</button>
+            </div>
+          </div>
+
+          <div class="control-row">
+            <label class="control-label" data-i18n="maskColor">Color</label>
+            <div class="color-picker-row">
+              <input type="color" id="input-color" value="#000000">
+              <span class="color-hex-text" id="color-hex-display">#000000</span>
+            </div>
+          </div>
+
+          <div class="control-row">
+            <div class="slider-header">
+              <label class="control-label" data-i18n="maskOpacity">Opacity</label>
+              <span class="slider-val" id="opacity-val-display">45%</span>
+            </div>
+            <input type="range" id="input-opacity" min="0" max="100" value="45" class="slider-range">
+          </div>
+
+          <div class="control-row" id="row-blur">
+            <div class="slider-header">
+              <label class="control-label" data-i18n="maskBlur">Blur Amount</label>
+              <span class="slider-val" id="blur-val-display">16px</span>
+            </div>
+            <input type="range" id="input-blur" min="0" max="40" value="16" class="slider-range">
+          </div>
+        </div>
+
+        <!-- Danger action: Delete -->
+        <div class="actions-row">
+          <button type="button" class="btn-danger-text" id="btn-delete-preset" data-i18n="deletePreset">Delete Mask</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="popup-footer">
+      <a href="#" id="link-options" class="options-link" data-i18n="openOptions">Manage All Channels ⚙️</a>
+    </footer>
+  </div>
+
   <script type="module" src="./main.ts"></script>
 </body>
 </html>
