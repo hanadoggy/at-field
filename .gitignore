@@ -26,6 +26,8 @@ node_modules/
 dist/
 build/
 out/
+.wxt/
+.output/
 .cache/
 .parcel-cache/
 *.tsbuildinfo
