@@ -1,15 +1,9 @@
 import { MIN_MASK_SIZE } from '../shared/constants';
+import { toFiniteNumber } from '../shared/storage';
 import type { ClientRectLike, PxBox } from '../types/geometry';
 import type { Rect } from '../types/schema';
 
-export function toFiniteNumber(val: unknown, fallback: number): number {
-  if (typeof val === 'number' && Number.isFinite(val)) return val;
-  if (typeof val === 'string' && val.trim() !== '') {
-    const parsed = Number(val);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return fallback;
-}
+export { toFiniteNumber };
 
 /**
  * Computes the rendered video bounding box relative to player element.

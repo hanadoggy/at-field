@@ -32,7 +32,7 @@ function clamp(val: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, val));
 }
 
-function toFiniteNumber(val: unknown, fallback: number): number {
+export function toFiniteNumber(val: unknown, fallback: number): number {
   if (typeof val === 'number' && Number.isFinite(val)) return val;
   if (typeof val === 'string' && val.trim() !== '') {
     const parsed = Number(val);

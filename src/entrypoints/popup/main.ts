@@ -331,9 +331,13 @@ btnModeEdit.addEventListener('click', async () => {
 
 channelToggle.addEventListener('change', async () => {
   if (!currentPreset) return;
-  currentPreset.enabled = channelToggle.checked;
+  const enabled = channelToggle.checked;
+  currentPreset.enabled = enabled;
+  if (!enabled) {
+    updateModeButtons(false);
+  }
   await updatePreset(currentPreset.channelId, (latest) => {
-    latest.enabled = channelToggle.checked;
+    latest.enabled = enabled;
     return latest;
   });
 });

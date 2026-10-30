@@ -49,6 +49,7 @@ export default defineContentScript({
     let currentChannel: ChannelInfo | null = null;
     let currentPreset: ChannelPreset | null = null;
     let isEditMode = false;
+    let isTogglingEditMode = false;
     let activeEditor: MaskEditor | null = null;
     let currentMaskEl: HTMLElement | null = null;
     let navGeneration = 0;
@@ -399,6 +400,11 @@ export default defineContentScript({
       }
 
       if (message.type === MESSAGE_TYPES.TOGGLE_EDIT_MODE) {
+        if (isTogglingEditMode) {
+          sendResponse({ editMode: isEditMode });
+          return true;
+        }
+
         if (isEditMode) {
           setEditMode(false);
           sendResponse({ editMode: isEditMode });
@@ -416,69 +422,143 @@ export default defineContentScript({
           return true;
         }
 
+        isTogglingEditMode = true;
+        const myNavGen = navGeneration;
+
         (async () => {
-          if (!currentChannel) {
-            const quick = resolveChannelOnce();
-            if (quick) {
-              currentChannel = {
-                channelId: quick.channelId,
-                channelName: quick.channelName,
-              };
+          try {
+            if (!currentChannel) {
+              const quick = resolveChannelOnce();
+              if (quick) {
+                currentChannel = {
+                  channelId: quick.channelId,
+                  channelName: quick.channelName,
+                };
+              }
             }
-          }
-          if (!currentChannel) {
-            sendResponse({ editMode: false });
-            return;
-          }
+            if (!currentChannel || myNavGen !== navGeneration) {
+              sendResponse({ editMode: false });
+              return;
+            }
 
-          if (!currentPreset) {
-            currentPreset = await getPreset(currentChannel.channelId);
-          }
+            const targetChannel = currentChannel;
 
-          let createdPreset = false;
-          if (!currentPreset) {
-            const newPreset = createDefaultPreset(
-              currentChannel.channelId,
-              currentChannel.channelName,
-              currentSettings ? currentSettings.defaultStyle : undefined
-            );
-            currentPreset = await savePreset(newPreset);
-            createdPreset = true;
-          } else if (!currentPreset.enabled) {
-            currentPreset.enabled = true;
-            currentPreset = await savePreset(currentPreset);
-          }
+            if (!currentPreset) {
+              const loaded = await getPreset(targetChannel.channelId);
+              if (
+                myNavGen !== navGeneration ||
+                !currentChannel ||
+                currentChannel.channelId !== targetChannel.channelId
+              ) {
+                sendResponse({ editMode: false });
+                return;
+              }
+              currentPreset = loaded;
+            }
 
-          await sync();
-          setEditMode(true);
-          sendResponse({
-            editMode: isEditMode,
-            ...(createdPreset ? { createdPreset: true } : {}),
-          });
+            let createdPreset = false;
+            if (!currentPreset) {
+              const newPreset = createDefaultPreset(
+                targetChannel.channelId,
+                targetChannel.channelName,
+                currentSettings ? currentSettings.defaultStyle : undefined
+              );
+              const saved = await savePreset(newPreset);
+              if (
+                myNavGen !== navGeneration ||
+                !currentChannel ||
+                currentChannel.channelId !== targetChannel.channelId
+              ) {
+                sendResponse({ editMode: false });
+                return;
+              }
+              currentPreset = saved;
+              createdPreset = true;
+            } else if (!currentPreset.enabled) {
+              currentPreset.enabled = true;
+              const saved = await savePreset(currentPreset);
+              if (
+                myNavGen !== navGeneration ||
+                !currentChannel ||
+                currentChannel.channelId !== targetChannel.channelId
+              ) {
+                sendResponse({ editMode: false });
+                return;
+              }
+              currentPreset = saved;
+            }
+
+            await sync();
+            if (
+              myNavGen !== navGeneration ||
+              !currentChannel ||
+              currentChannel.channelId !== targetChannel.channelId
+            ) {
+              sendResponse({ editMode: false });
+              return;
+            }
+
+            setEditMode(true);
+            sendResponse({
+              editMode: isEditMode,
+              ...(createdPreset ? { createdPreset: true } : {}),
+            });
+          } finally {
+            isTogglingEditMode = false;
+          }
         })();
         return true;
       }
 
       if (message.type === MESSAGE_TYPES.CREATE_PRESET) {
+        if (isTogglingEditMode) {
+          sendResponse({ success: false, error: 'Operation in progress' });
+          return true;
+        }
+
+        const myNavGen = navGeneration;
+        isTogglingEditMode = true;
+
         (async () => {
-          if (!currentChannel) {
-            sendResponse({ success: false, error: 'No channel detected' });
-            return;
+          try {
+            if (!currentChannel || myNavGen !== navGeneration) {
+              sendResponse({ success: false, error: 'No channel detected' });
+              return;
+            }
+            const targetChannel = currentChannel;
+            const newPreset = createDefaultPreset(
+              targetChannel.channelId,
+              targetChannel.channelName,
+              currentSettings ? currentSettings.defaultStyle : undefined
+            );
+            const saved = await savePreset(newPreset);
+            if (
+              myNavGen !== navGeneration ||
+              !currentChannel ||
+              currentChannel.channelId !== targetChannel.channelId
+            ) {
+              sendResponse({ success: false, error: 'Navigation changed' });
+              return;
+            }
+            currentPreset = saved;
+            await sync();
+            if (
+              myNavGen !== navGeneration ||
+              !currentChannel ||
+              currentChannel.channelId !== targetChannel.channelId
+            ) {
+              sendResponse({ success: false, error: 'Navigation changed' });
+              return;
+            }
+            setEditMode(true);
+            sendResponse({
+              success: true,
+              preset: currentPreset,
+              editMode: isEditMode,
+            });
+          } finally {
+            isTogglingEditMode = false;
           }
-          const newPreset = createDefaultPreset(
-            currentChannel.channelId,
-            currentChannel.channelName,
-            currentSettings ? currentSettings.defaultStyle : undefined
-          );
-          const saved = await savePreset(newPreset);
-          currentPreset = saved;
-          await sync();
-          setEditMode(true);
-          sendResponse({
-            success: true,
-            preset: currentPreset,
-            editMode: isEditMode,
-          });
         })();
         return true; // Keep message channel open for async response
       }
