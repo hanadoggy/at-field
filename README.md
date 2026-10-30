@@ -31,6 +31,8 @@ YouTube 영상 내부에 하드코딩된 채팅창(burnt-in chat overlay)이나 
 ```text
 at-field/
 ├── wxt.config.ts                  # WXT 빌드 및 Firefox MV3 manifest 설정
+├── mise.toml                      # mise 런타임 버전 설정 (node 24, pnpm)
+├── pnpm-workspace.yaml            # pnpm 설정 (esbuild 빌드 허용)
 ├── tsconfig.json                  # TypeScript Strict 설정
 ├── vitest.config.ts               # Vitest 단위 테스트 설정
 ├── src/
@@ -60,33 +62,34 @@ at-field/
 
 ### 1. 요구 환경 (Prerequisites)
 - **OS**: macOS, Linux, or Windows
-- **Node.js**: `>= 20.x` (권장 및 검증 버전: `v24.x` / npm `11.x`)
+- **Node.js**: `24.x` (`>= 24.0.0`, [mise](https://mise.jdx.dev/) 사용 시 `mise.toml`로 자동 적용)
+- **Package Manager**: `pnpm` (`12.x`)
 - **Firefox**: `>= 142.0` (`strict_min_version: 142.0`)
 
 ### 2. 의존성 설치 및 빌드 (Install & Build)
 
 ```bash
-# 1. package-lock.json 기준 의존성 설치 (postinstall로 wxt prepare 자동 실행)
-npm ci
+# 1. pnpm-lock.yaml 기준 의존성 설치 (postinstall로 wxt prepare 자동 실행)
+pnpm install --frozen-lockfile
 
 # 2. 타입 검사 + 단위 테스트 + Firefox MV3 프로덕션 빌드 일괄 실행
-npm run check
+pnpm run check
 ```
 
 개별 스크립트는 다음과 같습니다:
 
 | 명령어 | 설명 |
 |---|---|
-| `npm run typecheck` | `tsc --noEmit`으로 TypeScript 타입 검사 |
-| `npm test` | `vitest run`으로 단위 테스트 실행 |
-| `npm run build` | `dist/firefox-mv3/` 경로에 Firefox MV3 확장 빌드 생성 (`minify: false`) |
-| `npm run zip` | `dist/at-field-<version>-firefox.zip` 및 `*-sources.zip` 생성 |
-| `npm run lint:amo` | `npx -y web-ext@latest lint -s dist/firefox-mv3`로 AMO 정적 검증 |
-| `npm run sign` | `dist/firefox-mv3`를 대상으로 개인용 Unlisted 서명 실행 |
+| `pnpm run typecheck` | `tsc --noEmit`으로 TypeScript 타입 검사 |
+| `pnpm test` | `vitest run`으로 단위 테스트 실행 |
+| `pnpm run build` | `dist/firefox-mv3/` 경로에 Firefox MV3 확장 빌드 생성 (`minify: false`) |
+| `pnpm run zip` | `dist/at-field-<version>-firefox.zip` 및 `*-sources.zip` 생성 |
+| `pnpm run lint:amo` | `pnpm dlx web-ext@latest lint -s dist/firefox-mv3`로 AMO 정적 검증 |
+| `pnpm run sign` | `dist/firefox-mv3`를 대상으로 개인용 Unlisted 서명 실행 |
 
 ### 3. Firefox에 임시 부가 기능으로 로드하기
 
-1. `npm run build`를 실행하여 `dist/firefox-mv3/` 디렉터리를 생성합니다.
+1. `pnpm run build`를 실행하여 `dist/firefox-mv3/` 디렉터리를 생성합니다.
 2. Firefox 주소창에 `about:debugging#/runtime/this-firefox`를 입력합니다.
 3. **임시 부가 기능 로드... (Load Temporary Add-on...)** 버튼을 클릭합니다.
 4. `dist/firefox-mv3/manifest.json` 파일을 선택합니다.

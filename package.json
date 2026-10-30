@@ -3,14 +3,18 @@
   "version": "0.2.0",
   "description": "YouTube in-video burnt-in chat masker Firefox extension",
   "private": true,
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "build": "wxt build -b firefox --mv3",
     "zip": "wxt zip -b firefox --mv3",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "npm run typecheck && npm run test && npm run build",
-    "lint:amo": "npx -y web-ext@latest lint -s dist/firefox-mv3",
-    "sign": "npx -y web-ext@latest sign -s dist/firefox-mv3 --channel=unlisted",
+    "check": "pnpm run typecheck && pnpm run test && pnpm run build",
+    "lint:amo": "pnpm dlx web-ext@latest lint -s dist/firefox-mv3",
+    "sign": "pnpm dlx web-ext@latest sign -s dist/firefox-mv3 --channel=unlisted",
     "postinstall": "wxt prepare"
   },
   "devDependencies": {
