@@ -1,5 +1,6 @@
 import { getStorageArea } from './browser-api';
 import {
+  BACKUP_FORMAT,
   CHANNEL_KEY_PREFIX,
   DEFAULT_MASK_RECT,
   DEFAULT_OPACITY_BLUR,
@@ -11,8 +12,11 @@ import {
   SETTINGS_KEY,
 } from './constants';
 import type {
+  BackupPayload,
   ChannelKey,
   ChannelPreset,
+  ImportOptions,
+  ImportResult,
   MaskStyle,
   Profile,
   RawPresetInput,
@@ -355,4 +359,161 @@ export async function migrate(): Promise<void> {
   } catch (err) {
     console.error('[ATF] Migration failed:', err);
   }
+}
+
+export async function exportBackupData(): Promise<BackupPayload> {
+  const [settings, presets] = await Promise.all([getSettings(), listPresets()]);
+  return {
+    format: BACKUP_FORMAT,
+    schemaVersion: SCHEMA_VERSION,
+    exportedAt: Date.now(),
+    data: {
+      settings,
+      presets,
+    },
+  };
+}
+
+export function parseBackupPayload(
+  raw: unknown,
+  fallbackStyle?: MaskStyle
+): { settings?: Settings; presets: ChannelPreset[] } {
+  if (!raw || typeof raw !== 'object') {
+    throw new Error('INVALID_BACKUP_FORMAT');
+  }
+  const obj = raw as Record<string, unknown>;
+  if (obj.format !== BACKUP_FORMAT) {
+    throw new Error('INVALID_BACKUP_FORMAT');
+  }
+
+  const version = obj.schemaVersion;
+  if (
+    typeof version !== 'number' ||
+    !Number.isInteger(version) ||
+    version < 1
+  ) {
+    throw new Error('INVALID_BACKUP_FORMAT');
+  }
+  if (version > SCHEMA_VERSION) {
+    throw new Error('UNSUPPORTED_SCHEMA_VERSION');
+  }
+
+  const data = obj.data;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('INVALID_BACKUP_FORMAT');
+  }
+  const dataObj = data as Record<string, unknown>;
+
+  const hasSettings =
+    dataObj.settings !== undefined &&
+    dataObj.settings !== null &&
+    typeof dataObj.settings === 'object';
+  const settings = hasSettings
+    ? normalizeSettings(dataObj.settings)
+    : undefined;
+
+  const effectiveFallback = settings ? settings.defaultStyle : fallbackStyle;
+
+  let rawPresetsList: unknown[] = [];
+  if (Array.isArray(dataObj.presets)) {
+    rawPresetsList = dataObj.presets;
+  } else {
+    for (const [k, v] of Object.entries(dataObj)) {
+      if (k.startsWith(CHANNEL_KEY_PREFIX)) {
+        rawPresetsList.push(v);
+      }
+    }
+  }
+
+  const deduped = new Map<string, ChannelPreset>();
+  for (const item of rawPresetsList) {
+    const normalized = normalizePreset(item, effectiveFallback);
+    if (!normalized) continue;
+    const prev = deduped.get(normalized.channelId);
+    if (!prev || (normalized.updatedAt || 0) >= (prev.updatedAt || 0)) {
+      deduped.set(normalized.channelId, normalized);
+    }
+  }
+
+  const presets = Array.from(deduped.values());
+  presets.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+  return {
+    ...(settings ? { settings } : {}),
+    presets,
+  };
+}
+
+export async function importBackupData(
+  raw: unknown,
+  options: ImportOptions = {}
+): Promise<ImportResult> {
+  const strategy = options.strategy || 'merge';
+  const includeSettings = options.includeSettings !== false;
+
+  const currentSettings = await getSettings();
+  const parsed = parseBackupPayload(raw, currentSettings.defaultStyle);
+
+  const storage = getStorageArea();
+  if (!storage) {
+    return { importedCount: 0, skippedCount: 0, settingsUpdated: false };
+  }
+
+  const all = (await storage.get(null)) || {};
+  const existingKeys: string[] = [];
+  const existingPresets = new Map<string, ChannelPreset>();
+
+  const effectiveFallback =
+    includeSettings && parsed.settings
+      ? parsed.settings.defaultStyle
+      : currentSettings.defaultStyle;
+
+  for (const [key, val] of Object.entries(all)) {
+    if (key.startsWith(CHANNEL_KEY_PREFIX)) {
+      existingKeys.push(key);
+      const normalized = normalizePreset(val, effectiveFallback);
+      if (normalized) {
+        existingPresets.set(normalized.channelId, normalized);
+      }
+    }
+  }
+
+  const writes: Record<string, unknown> = {};
+  let importedCount = 0;
+  let skippedCount = 0;
+
+  if (strategy === 'overwrite') {
+    if (existingKeys.length > 0) {
+      await storage.remove(existingKeys);
+    }
+    for (const preset of parsed.presets) {
+      writes[getChannelKey(preset.channelId)] = preset;
+      importedCount++;
+    }
+  } else {
+    for (const incoming of parsed.presets) {
+      const existing = existingPresets.get(incoming.channelId);
+      if (
+        !existing ||
+        (incoming.updatedAt || 0) >= (existing.updatedAt || 0)
+      ) {
+        writes[getChannelKey(incoming.channelId)] = incoming;
+        importedCount++;
+      } else {
+        skippedCount++;
+      }
+    }
+  }
+
+  let settingsUpdated = false;
+  if (includeSettings && parsed.settings) {
+    writes[SETTINGS_KEY] = parsed.settings;
+    settingsUpdated = true;
+  }
+
+  if (Object.keys(writes).length > 0) {
+    await storage.set(writes);
+  }
+
+  return { importedCount, skippedCount, settingsUpdated };
 }

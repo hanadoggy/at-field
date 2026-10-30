@@ -58,6 +58,27 @@
       </div>
     </section>
 
+    <!-- Backup & Restore Section -->
+    <section class="section-card">
+      <h2 class="section-title" data-i18n="backupSectionTitle">Backup & Restore</h2>
+      <div class="backup-bar">
+        <div class="backup-policy-group">
+          <label class="item-label" data-i18n="backupConflictPolicy">Import Mode</label>
+          <div class="segmented-control mini backup-segmented">
+            <button type="button" class="segment-btn active" id="backup-mode-merge" data-i18n="backupModeMerge">Merge (Keep Newer)</button>
+            <button type="button" class="segment-btn" id="backup-mode-overwrite" data-i18n="backupModeOverwrite">Overwrite All</button>
+          </div>
+        </div>
+
+        <div class="backup-actions">
+          <button type="button" class="btn-secondary" id="btn-export-backup" data-i18n="exportBackupButton">Export JSON</button>
+          <button type="button" class="btn-primary" id="btn-import-backup" data-i18n="importBackupButton">Import JSON</button>
+          <input type="file" id="input-import-file" accept=".json,application/json" class="hidden">
+        </div>
+      </div>
+      <div id="backup-status" class="backup-status hidden" role="status" aria-live="polite"></div>
+    </section>
+
     <!-- Channel Presets Section -->
     <section class="section-card">
       <div class="section-header-row">

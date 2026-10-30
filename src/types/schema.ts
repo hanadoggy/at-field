@@ -64,3 +64,26 @@ export interface RawPresetInput extends Partial<Omit<ChannelPreset, 'profiles'>>
   style?: Partial<MaskStyle>; // legacy v0
   masks?: Array<{ rect?: Partial<Rect>; style?: Partial<MaskStyle> }>; // legacy
 }
+
+export type ImportConflictStrategy = 'merge' | 'overwrite';
+
+export interface BackupPayload {
+  format: 'atfield-backup';
+  schemaVersion: number;
+  exportedAt: number;
+  data: {
+    settings: Settings;
+    presets: ChannelPreset[];
+  };
+}
+
+export interface ImportOptions {
+  strategy?: ImportConflictStrategy;
+  includeSettings?: boolean;
+}
+
+export interface ImportResult {
+  importedCount: number;
+  skippedCount: number;
+  settingsUpdated: boolean;
+}

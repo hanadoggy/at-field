@@ -3,7 +3,9 @@ import { getRequiredElement } from '../../shared/dom';
 import { applyI18n, getMessage } from '../../shared/i18n';
 import {
   deletePreset,
+  exportBackupData,
   getSettings,
+  importBackupData,
   listPresets,
   normalizeRect,
   setSettings,
@@ -11,6 +13,7 @@ import {
 } from '../../shared/storage';
 import type {
   ChannelPreset,
+  ImportConflictStrategy,
   MaskStyle,
   Rect,
   Settings,
@@ -35,9 +38,24 @@ const defBlurGroup = getRequiredElement<HTMLElement>('def-blur-group');
 const defBlur = getRequiredElement<HTMLInputElement>('def-blur');
 const defBlurDisplay = getRequiredElement<HTMLElement>('def-blur-display');
 
+// Backup & Restore Controls
+const backupModeMerge =
+  getRequiredElement<HTMLButtonElement>('backup-mode-merge');
+const backupModeOverwrite = getRequiredElement<HTMLButtonElement>(
+  'backup-mode-overwrite'
+);
+const btnExportBackup =
+  getRequiredElement<HTMLButtonElement>('btn-export-backup');
+const btnImportBackup =
+  getRequiredElement<HTMLButtonElement>('btn-import-backup');
+const inputImportFile =
+  getRequiredElement<HTMLInputElement>('input-import-file');
+const backupStatus = getRequiredElement<HTMLElement>('backup-status');
+
 let currentSettings: Settings | null = null;
 let allPresets: ChannelPreset[] = [];
 let filterQuery = '';
+let importStrategy: ImportConflictStrategy = 'merge';
 
 function formatDate(timestamp: number | undefined): string {
   if (!timestamp) return '';
@@ -291,6 +309,89 @@ function renderPresets(): void {
   }
 }
 
+function showBackupStatus(message: string, isError = false): void {
+  backupStatus.textContent = message;
+  backupStatus.classList.toggle('is-error', isError);
+  backupStatus.classList.remove('hidden');
+}
+
+function setImportStrategy(strategy: ImportConflictStrategy): void {
+  importStrategy = strategy;
+  if (strategy === 'overwrite') {
+    backupModeOverwrite.classList.add('active');
+    backupModeMerge.classList.remove('active');
+  } else {
+    backupModeMerge.classList.add('active');
+    backupModeOverwrite.classList.remove('active');
+  }
+}
+
+async function handleExportBackup(): Promise<void> {
+  try {
+    const payload = await exportBackupData();
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const dateStr = formatDate(payload.exportedAt) || 'backup';
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `at-field-backup-${dateStr}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+
+    const countStr = String(payload.data.presets.length);
+    const msg =
+      getMessage('backupExportSuccess', [countStr]) ||
+      `Backup exported (${countStr} channel(s)).`;
+    showBackupStatus(msg, false);
+  } catch {
+    showBackupStatus(
+      getMessage('backupErrorInvalid') || 'Invalid backup file format.',
+      true
+    );
+  }
+}
+
+async function handleImportFile(file: File): Promise<void> {
+  if (importStrategy === 'overwrite') {
+    const confirmMsg =
+      getMessage('overwriteConfirm') ||
+      'Overwrite mode will replace all existing channel presets with the backup file. Continue?';
+    if (!window.confirm(confirmMsg)) {
+      return;
+    }
+  }
+
+  try {
+    const text = await file.text();
+    const raw: unknown = JSON.parse(text);
+    const result = await importBackupData(raw, { strategy: importStrategy });
+
+    currentSettings = await getSettings();
+    updateDefaultStyleUI(currentSettings.defaultStyle);
+    allPresets = await listPresets();
+    renderPresets();
+
+    const importedStr = String(result.importedCount);
+    const skippedStr = String(result.skippedCount);
+    const msg =
+      getMessage('backupImportSuccess', [importedStr, skippedStr]) ||
+      `Imported ${importedStr} channel(s) (${skippedStr} skipped).`;
+    showBackupStatus(msg, false);
+  } catch (err) {
+    const isUnsupportedVersion =
+      err instanceof Error && err.message === 'UNSUPPORTED_SCHEMA_VERSION';
+    const errMsg = isUnsupportedVersion
+      ? getMessage('backupErrorVersion') ||
+        'Unsupported backup schema version. Please update A.T.Field.'
+      : getMessage('backupErrorInvalid') || 'Invalid backup file format.';
+    showBackupStatus(errMsg, true);
+  }
+}
+
 async function init(): Promise<void> {
   applyI18n();
 
@@ -305,10 +406,36 @@ async function init(): Promise<void> {
   if (storageApi && storageApi.onChanged) {
     storageApi.onChanged.addListener(async (_changes, areaName) => {
       if (areaName !== 'local') return;
+      currentSettings = await getSettings();
+      updateDefaultStyleUI(currentSettings.defaultStyle);
       allPresets = await listPresets();
       renderPresets();
     });
   }
+
+  // Backup & Restore listeners
+  backupModeMerge.addEventListener('click', () => {
+    setImportStrategy('merge');
+  });
+
+  backupModeOverwrite.addEventListener('click', () => {
+    setImportStrategy('overwrite');
+  });
+
+  btnExportBackup.addEventListener('click', () => {
+    void handleExportBackup();
+  });
+
+  btnImportBackup.addEventListener('click', () => {
+    inputImportFile.click();
+  });
+
+  inputImportFile.addEventListener('change', async () => {
+    const file = inputImportFile.files && inputImportFile.files[0];
+    inputImportFile.value = '';
+    if (!file) return;
+    await handleImportFile(file);
+  });
 
   // Default style listeners
   defTypeBlur.addEventListener('click', () => {

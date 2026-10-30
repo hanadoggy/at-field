@@ -263,3 +263,151 @@ test('storage.normalizePreset - preserves v0.1.1 fixture presets without regress
     );
   }
 });
+
+test('storage.parseBackupPayload - rejects invalid format or unsupported schemaVersion', () => {
+  assert.throws(
+    () => storage.parseBackupPayload(null),
+    /INVALID_BACKUP_FORMAT/
+  );
+  assert.throws(
+    () => storage.parseBackupPayload({ format: 'wrong', schemaVersion: 1, data: {} }),
+    /INVALID_BACKUP_FORMAT/
+  );
+  assert.throws(
+    () =>
+      storage.parseBackupPayload({
+        format: 'atfield-backup',
+        schemaVersion: 99,
+        data: {},
+      }),
+    /UNSUPPORTED_SCHEMA_VERSION/
+  );
+});
+
+test('storage exportBackupData and importBackupData - merge and overwrite conflict strategies', async () => {
+  const mockStore: Record<string, any> = {};
+  const mockBrowser = {
+    storage: {
+      local: {
+        get: async (keys: string | string[] | null) => {
+          if (keys === null) return { ...mockStore };
+          if (typeof keys === 'string') return { [keys]: mockStore[keys] };
+          if (Array.isArray(keys)) {
+            const res: Record<string, unknown> = {};
+            for (const k of keys) res[k] = mockStore[k];
+            return res;
+          }
+          return {};
+        },
+        set: async (items: Record<string, unknown>) => {
+          Object.assign(mockStore, items);
+        },
+        remove: async (keys: string | string[]) => {
+          const arr = Array.isArray(keys) ? keys : [keys];
+          for (const k of arr) delete mockStore[k];
+        },
+      },
+    },
+  };
+
+  await withMockGlobals({ browser: mockBrowser }, async () => {
+    await storage.migrate();
+
+    // Seed initial presets: ch_keep (newer: 2000), ch_update (older: 1000), ch_local_only (1500)
+    mockStore['ch:UC_keep_newer_0000000001'] = {
+      ...storage.createDefaultPreset('UC_keep_newer_0000000001', 'Local Newer'),
+      updatedAt: 2000,
+    };
+    mockStore['ch:UC_update_older_00000002'] = {
+      ...storage.createDefaultPreset('UC_update_older_00000002', 'Local Older'),
+      updatedAt: 1000,
+    };
+    mockStore['ch:UC_local_only_0000000003'] = {
+      ...storage.createDefaultPreset('UC_local_only_0000000003', 'Local Only'),
+      updatedAt: 1500,
+    };
+
+    const exported = await storage.exportBackupData();
+    assert.equal(exported.format, 'atfield-backup');
+    assert.equal(exported.schemaVersion, 1);
+    assert.equal(exported.data.presets.length, 3);
+
+    // Prepare incoming backup payload
+    const incomingBackup = {
+      format: 'atfield-backup',
+      schemaVersion: 1,
+      exportedAt: 3000,
+      data: {
+        settings: {
+          enabled: true,
+          defaultStyle: { type: 'solid', color: '#224466', opacity: 0.9, blur: 10 },
+        },
+        presets: [
+          // Older than existing (1500 < 2000) -> should be skipped in merge
+          {
+            ...storage.createDefaultPreset(
+              'UC_keep_newer_0000000001',
+              'Backup Stale'
+            ),
+            updatedAt: 1500,
+          },
+          // Newer than existing (2500 >= 1000) -> should overwrite in merge
+          {
+            ...storage.createDefaultPreset(
+              'UC_update_older_00000002',
+              'Backup Updated'
+            ),
+            updatedAt: 2500,
+          },
+          // Brand new channel -> should be added in merge
+          {
+            ...storage.createDefaultPreset(
+              'UC_new_from_backup_00004',
+              'Backup Brand New'
+            ),
+            updatedAt: 1800,
+          },
+        ],
+      },
+    };
+
+    // 1. Test MERGE strategy
+    const mergeResult = await storage.importBackupData(incomingBackup, {
+      strategy: 'merge',
+    });
+    assert.equal(mergeResult.importedCount, 2);
+    assert.equal(mergeResult.skippedCount, 1);
+    assert.equal(mergeResult.settingsUpdated, true);
+
+    const kept = await storage.getPreset('UC_keep_newer_0000000001');
+    assert.equal(kept?.channelName, 'Local Newer');
+
+    const updated = await storage.getPreset('UC_update_older_00000002');
+    assert.equal(updated?.channelName, 'Backup Updated');
+
+    const localOnly = await storage.getPreset('UC_local_only_0000000003');
+    assert.equal(localOnly?.channelName, 'Local Only');
+
+    const brandNew = await storage.getPreset('UC_new_from_backup_00004');
+    assert.equal(brandNew?.channelName, 'Backup Brand New');
+
+    const mergedSettings = await storage.getSettings();
+    assert.equal(mergedSettings.defaultStyle.color, '#224466');
+
+    // 2. Test OVERWRITE strategy
+    const overwriteResult = await storage.importBackupData(incomingBackup, {
+      strategy: 'overwrite',
+    });
+    assert.equal(overwriteResult.importedCount, 3);
+    assert.equal(overwriteResult.skippedCount, 0);
+
+    // Local-only preset must be removed, and stale backup item replaces local newer
+    const afterOverwriteList = await storage.listPresets();
+    assert.equal(afterOverwriteList.length, 3);
+    assert.equal(await storage.getPreset('UC_local_only_0000000003'), null);
+    assert.equal(
+      (await storage.getPreset('UC_keep_newer_0000000001'))?.channelName,
+      'Backup Stale'
+    );
+  });
+});

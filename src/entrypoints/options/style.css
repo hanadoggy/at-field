@@ -209,6 +209,84 @@ body {
   color: #121215;
 }
 
+/* Backup & Restore */
+.backup-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  background-color: var(--bg-card);
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.backup-policy-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 240px;
+}
+
+.backup-segmented .segment-btn {
+  padding: 6px 12px;
+}
+
+.backup-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-primary,
+.btn-secondary {
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.btn-primary {
+  background-color: var(--accent);
+  border: 1px solid var(--accent);
+  color: #121215;
+}
+
+.btn-primary:hover {
+  background-color: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn-secondary {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+}
+
+.btn-secondary:hover {
+  border-color: var(--border-accent);
+  color: var(--accent);
+}
+
+.backup-status {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  background-color: var(--accent-dim);
+  border: 1px solid var(--border-accent);
+  color: var(--text-main);
+}
+
+.backup-status.is-error {
+  background-color: rgba(255, 77, 79, 0.12);
+  border-color: rgba(255, 77, 79, 0.45);
+  color: var(--danger-hover);
+}
+
 /* Presets Grid */
 .presets-grid {
   display: grid;
