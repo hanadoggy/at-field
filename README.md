@@ -9,12 +9,14 @@ YouTube 영상 내부에 하드코딩된 채팅창(burnt-in chat overlay)이나 
 - **채널별 자동 프리셋 적용**: YouTube `/watch` 페이지 진입 및 SPA 이동 시 채널 ID(`UC...`)를 감지하여 저장된 마스크 프리셋을 자동으로 표시합니다.
 - **비디오 렌더 영역 기준 상대 좌표계**: 레터박스(상하 여백)와 필러박스(좌우 여백)를 제외한 실제 영상 렌더링 박스 기준 비율(`0.0 ~ 1.0`)로 좌표를 계산하여 기본 뷰, 극장 모드, 전체화면, 창 리사이즈 시에도 정확한 위치를 유지합니다.
 - **인터랙티브 마스크 편집기**:
+  - 단축키(`Command+Shift+M` / `Ctrl+Shift+M`) 또는 팝업 버튼으로 즉시 편집 모드 진입/종료 (프리셋 없는 채널에서도 단축키 입력 시 기본 마스크 자동 생성)
   - 마우스 드래그 이동 및 8방향 리사이즈 핸들 지원
   - 방향키 미세 조정 (`0.2%` 단위, `Shift` + 방향키 `1.0%` 단위)
   - 편집 중 YouTube 단축키(`k`, `j`, `l`, `f`, `t`, `m`, `c`, `Space`, `0~9`) 오작동 차단 및 `Enter` 저장 / `Esc` 롤백
 - **마스크 스타일 커스터마이징**:
   - **블러(Blur)**: `backdrop-filter: blur()` + 반투명 색상 틴트 오버레이
   - **단색(Solid Color)**: 불투명도 및 색상 지정
+- **설정 백업 및 복원**: 옵션 페이지에서 JSON 포맷(`atfield-backup`) 내보내기 및 가져오기(최신 우선 병합 / 전체 덮어쓰기)를 지원합니다.
 - **자동 제외 감지**: 광고 재생 중(`ad-showing`), 미니플레이어 활성화, YouTube Shorts(`/shorts`)에서는 마스크를 자동으로 숨깁니다.
 - **다국어 지원**: 한국어(`ko`), 영어(`en`) 지원
 
@@ -33,9 +35,10 @@ at-field/
 ├── vitest.config.ts               # Vitest 단위 테스트 설정
 ├── src/
 │   ├── entrypoints/
+│   │   ├── background.ts          # 단축키(commands) 이벤트 수신 Background 스크립트
 │   │   ├── content/               # YouTube Content Script 엔트리 (index.ts, style.css)
 │   │   ├── popup/                 # 확장 팝업 UI (index.html, main.ts, style.css)
-│   │   └── options/               # 전체 채널 관리 및 기본 스타일 설정 페이지
+│   │   └── options/               # 전체 채널 관리, 기본 스타일, 백업/복원 설정 페이지
 │   ├── content/                   # Content Script 전용 모듈
 │   │   ├── geometry.ts            # 비디오 렌더 영역 계산 및 비율↔픽셀 변환
 │   │   ├── channel.ts             # 3단계 YouTube 채널 ID/이름 감지
