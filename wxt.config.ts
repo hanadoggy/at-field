@@ -7,6 +7,7 @@ export default defineConfig({
   manifestVersion: 3,
   imports: false,
   webExt: { disabled: true },
+  zip: { excludeSources: ['docs/**', 'web-ext-artifacts/**'] },
   vite: () => ({ build: { minify: false } }),
   manifest: ({ browser }) => ({
     name: '__MSG_extName__',
