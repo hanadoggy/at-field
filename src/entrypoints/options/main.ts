@@ -2,8 +2,10 @@ import { getExtensionApi } from '../../shared/browser-api';
 import { getRequiredElement } from '../../shared/dom';
 import { applyI18n, getMessage } from '../../shared/i18n';
 import {
+  deleteMaskFromProfile,
   deletePreset,
   exportBackupData,
+  getActiveProfile,
   getSettings,
   importBackupData,
   listPresets,
@@ -106,13 +108,7 @@ function createPresetCardElement(preset: ChannelPreset): HTMLDivElement {
   const card = document.createElement('div');
   card.className = 'preset-card';
 
-  const activeProfile =
-    preset.profiles &&
-    preset.profiles.find((pr) => pr.id === preset.activeProfileId);
-  const maskData =
-    activeProfile && activeProfile.masks && activeProfile.masks[0];
-  const style: Partial<MaskStyle> = maskData ? maskData.style : {};
-  const rect: Rect = maskData ? maskData.rect : { x: 0, y: 0, w: 0, h: 0 };
+  const activeProfile = getActiveProfile(preset);
 
   // 1. Header
   const cardHeader = document.createElement('div');
@@ -132,101 +128,178 @@ function createPresetCardElement(preset: ChannelPreset): HTMLDivElement {
 
   titleWrapper.appendChild(titleLink);
   titleWrapper.appendChild(idDiv);
-  cardHeader.appendChild(titleWrapper);
 
-  // 2. Meta row (Style badge + Date)
+  const dateSpan = document.createElement('span');
+  dateSpan.className = 'preset-channel-id';
+  dateSpan.textContent = formatDate(preset.updatedAt);
+
+  cardHeader.appendChild(titleWrapper);
+  cardHeader.appendChild(dateSpan);
+
+  // 2. Profile selector row
   const metaRow = document.createElement('div');
   metaRow.className = 'preset-meta-row';
 
-  const styleBadge = document.createElement('div');
-  styleBadge.className = 'preset-style-badge';
-  const styleDot = document.createElement('span');
-  styleDot.className = 'style-dot';
-  styleDot.style.backgroundColor = style.color || '#000000';
+  const profileGroup = document.createElement('div');
+  profileGroup.className = 'card-profile-group';
 
-  const styleText = document.createElement('span');
-  const typeLabel =
-    style.type === 'solid'
-      ? getMessage('styleSolid') || 'Solid'
-      : getMessage('styleBlur') || 'Blur';
-  const opacityVal =
-    typeof style.opacity === 'number'
-      ? style.opacity
-      : style.type === 'solid'
-        ? 1.0
-        : 0.45;
-  const opacityPct = Math.round(opacityVal * 100);
-  styleText.textContent = `${typeLabel} (${opacityPct}%)`;
+  const profileLabel = document.createElement('span');
+  profileLabel.textContent = `${getMessage('profileLabel') || 'Profile'}:`;
 
-  styleBadge.appendChild(styleDot);
-  styleBadge.appendChild(styleText);
-
-  const dateSpan = document.createElement('span');
-  dateSpan.textContent = formatDate(preset.updatedAt);
-
-  metaRow.appendChild(styleBadge);
-  metaRow.appendChild(dateSpan);
-
-  // 3. Rect Inspector / Editor
-  const inspector = document.createElement('div');
-  inspector.className = 'rect-inspector';
-
-  const fields: Array<{ key: keyof Rect; label: string; val: string }> = [
-    { key: 'x', label: 'X', val: (rect.x * 100).toFixed(1) },
-    { key: 'y', label: 'Y', val: (rect.y * 100).toFixed(1) },
-    { key: 'w', label: 'W', val: (rect.w * 100).toFixed(1) },
-    { key: 'h', label: 'H', val: (rect.h * 100).toFixed(1) },
-  ];
-
-  const inputs = {} as Record<keyof Rect, HTMLInputElement>;
-
-  for (const f of fields) {
-    const fieldDiv = document.createElement('div');
-    fieldDiv.className = 'rect-field';
-
-    const lbl = document.createElement('label');
-    lbl.textContent = `${f.label}:`;
-
-    const numInput = document.createElement('input');
-    numInput.type = 'number';
-    numInput.step = '0.5';
-    numInput.min = '0';
-    numInput.max = '100';
-    numInput.value = f.val;
-    inputs[f.key] = numInput;
-
-    const unitSpan = document.createElement('span');
-    unitSpan.className = 'unit';
-    unitSpan.textContent = '%';
-
-    fieldDiv.appendChild(lbl);
-    fieldDiv.appendChild(numInput);
-    fieldDiv.appendChild(unitSpan);
-    inspector.appendChild(fieldDiv);
-
-    numInput.addEventListener('change', async () => {
-      const newX = parseFloat(inputs.x.value) / 100;
-      const newY = parseFloat(inputs.y.value) / 100;
-      const newW = parseFloat(inputs.w.value) / 100;
-      const newH = parseFloat(inputs.h.value) / 100;
-
-      const clamped = normalizeRect({ x: newX, y: newY, w: newW, h: newH });
-      inputs.x.value = (clamped.x * 100).toFixed(1);
-      inputs.y.value = (clamped.y * 100).toFixed(1);
-      inputs.w.value = (clamped.w * 100).toFixed(1);
-      inputs.h.value = (clamped.h * 100).toFixed(1);
-
-      await updatePreset(preset.channelId, (latest) => {
-        const prof =
-          latest.profiles.find((p) => p.id === latest.activeProfileId) ||
-          latest.profiles[0];
-        if (prof && prof.masks[0]) {
-          prof.masks[0].rect = clamped;
-        }
-        return latest;
-      });
-    });
+  const profileSelect = document.createElement('select');
+  profileSelect.className = 'card-profile-select';
+  for (const prof of preset.profiles) {
+    const opt = document.createElement('option');
+    opt.value = prof.id;
+    opt.textContent = `${prof.name} (${prof.masks.length})`;
+    opt.selected = prof.id === activeProfile.id;
+    profileSelect.appendChild(opt);
   }
+  profileSelect.value = activeProfile.id;
+
+  profileSelect.addEventListener('change', async () => {
+    const nextProfileId = profileSelect.value;
+    preset.activeProfileId = nextProfileId;
+    const updated = await updatePreset(preset.channelId, (latest) => {
+      latest.activeProfileId = nextProfileId;
+      return latest;
+    });
+    if (updated) {
+      const idx = allPresets.findIndex((p) => p.channelId === preset.channelId);
+      if (idx >= 0) allPresets[idx] = updated;
+      renderPresets();
+    }
+  });
+
+  profileGroup.appendChild(profileLabel);
+  profileGroup.appendChild(profileSelect);
+  metaRow.appendChild(profileGroup);
+
+  // 3. Masks List (Style badge + Rect Inspector per mask)
+  const masksListEl = document.createElement('div');
+  masksListEl.className = 'card-masks-list';
+
+  activeProfile.masks.forEach((maskData, mIdx) => {
+    const maskItem = document.createElement('div');
+    maskItem.className = 'card-mask-item';
+
+    const style: Partial<MaskStyle> = maskData.style || {};
+    const rect: Rect = maskData.rect || { x: 0, y: 0, w: 0, h: 0 };
+
+    const maskHeader = document.createElement('div');
+    maskHeader.className = 'card-mask-header';
+
+    const styleBadge = document.createElement('div');
+    styleBadge.className = 'preset-style-badge';
+    const styleDot = document.createElement('span');
+    styleDot.className = 'style-dot';
+    styleDot.style.backgroundColor = style.color || '#000000';
+
+    const styleText = document.createElement('span');
+    const typeLabel =
+      style.type === 'solid'
+        ? getMessage('styleSolid') || 'Solid'
+        : getMessage('styleBlur') || 'Blur';
+    const opacityVal =
+      typeof style.opacity === 'number'
+        ? style.opacity
+        : style.type === 'solid'
+          ? 1.0
+          : 0.45;
+    const opacityPct = Math.round(opacityVal * 100);
+    styleText.textContent = `#${mIdx + 1} · ${typeLabel} (${opacityPct}%)`;
+
+    styleBadge.appendChild(styleDot);
+    styleBadge.appendChild(styleText);
+    maskHeader.appendChild(styleBadge);
+
+    if (activeProfile.masks.length > 1) {
+      const btnDeleteMask = document.createElement('button');
+      btnDeleteMask.type = 'button';
+      btnDeleteMask.className = 'btn-mask-delete-inline';
+      btnDeleteMask.title = getMessage('deleteSelectedMask') || 'Delete mask';
+      btnDeleteMask.textContent = '×';
+      btnDeleteMask.addEventListener('click', async () => {
+        const updated = await updatePreset(preset.channelId, (latest) =>
+          deleteMaskFromProfile(latest, activeProfile.id, maskData.id)
+        );
+        if (updated) {
+          const idx = allPresets.findIndex(
+            (p) => p.channelId === preset.channelId
+          );
+          if (idx >= 0) allPresets[idx] = updated;
+          renderPresets();
+        }
+      });
+      maskHeader.appendChild(btnDeleteMask);
+    }
+
+    const inspector = document.createElement('div');
+    inspector.className = 'rect-inspector';
+
+    const fields: Array<{ key: keyof Rect; label: string; val: string }> = [
+      { key: 'x', label: 'X', val: (rect.x * 100).toFixed(1) },
+      { key: 'y', label: 'Y', val: (rect.y * 100).toFixed(1) },
+      { key: 'w', label: 'W', val: (rect.w * 100).toFixed(1) },
+      { key: 'h', label: 'H', val: (rect.h * 100).toFixed(1) },
+    ];
+
+    const inputs = {} as Record<keyof Rect, HTMLInputElement>;
+
+    for (const f of fields) {
+      const fieldDiv = document.createElement('div');
+      fieldDiv.className = 'rect-field';
+
+      const lbl = document.createElement('label');
+      lbl.textContent = `${f.label}:`;
+
+      const numInput = document.createElement('input');
+      numInput.type = 'number';
+      numInput.step = '0.5';
+      numInput.min = '0';
+      numInput.max = '100';
+      numInput.value = f.val;
+      inputs[f.key] = numInput;
+
+      const unitSpan = document.createElement('span');
+      unitSpan.className = 'unit';
+      unitSpan.textContent = '%';
+
+      fieldDiv.appendChild(lbl);
+      fieldDiv.appendChild(numInput);
+      fieldDiv.appendChild(unitSpan);
+      inspector.appendChild(fieldDiv);
+
+      numInput.addEventListener('change', async () => {
+        const newX = parseFloat(inputs.x.value) / 100;
+        const newY = parseFloat(inputs.y.value) / 100;
+        const newW = parseFloat(inputs.w.value) / 100;
+        const newH = parseFloat(inputs.h.value) / 100;
+
+        const clamped = normalizeRect({ x: newX, y: newY, w: newW, h: newH });
+        inputs.x.value = (clamped.x * 100).toFixed(1);
+        inputs.y.value = (clamped.y * 100).toFixed(1);
+        inputs.w.value = (clamped.w * 100).toFixed(1);
+        inputs.h.value = (clamped.h * 100).toFixed(1);
+
+        await updatePreset(preset.channelId, (latest) => {
+          const prof =
+            latest.profiles.find((p) => p.id === activeProfile.id) ||
+            getActiveProfile(latest);
+          const target =
+            prof.masks.find((m) => m.id === maskData.id) || prof.masks[mIdx];
+          if (target) {
+            target.rect = clamped;
+          }
+          return latest;
+        });
+      });
+    }
+
+    maskItem.appendChild(maskHeader);
+    maskItem.appendChild(inspector);
+    masksListEl.appendChild(maskItem);
+  });
 
   // 4. Card Actions
   const cardActions = document.createElement('div');
@@ -273,7 +346,7 @@ function createPresetCardElement(preset: ChannelPreset): HTMLDivElement {
   // Assemble Card
   card.appendChild(cardHeader);
   card.appendChild(metaRow);
-  card.appendChild(inspector);
+  card.appendChild(masksListEl);
   card.appendChild(cardActions);
 
   return card;

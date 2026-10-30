@@ -3,8 +3,12 @@ import { getMessage, type MessageKey } from '../shared/i18n';
 import type { PxBox } from '../types/geometry';
 import type { Rect } from '../types/schema';
 
-function getEditorMessage(key: MessageKey, fallback: string): string {
-  const msg = getMessage(key);
+function getEditorMessage(
+  key: MessageKey | string,
+  fallback: string,
+  substitutions?: string | string[]
+): string {
+  const msg = getMessage(key, substitutions);
   if (msg && msg !== key) return msg;
   return fallback;
 }
@@ -18,9 +22,12 @@ export interface MaskEditorOptions {
   playerEl: HTMLElement;
   videoEl: HTMLVideoElement;
   initialRect: Rect;
+  maskIndex?: number;
+  totalMasks?: number;
   onUpdate?: (rect: Rect) => void;
   onSave?: (rect: Rect) => void | Promise<void>;
   onExit?: () => void;
+  onCycleMask?: (delta: 1 | -1) => void;
 }
 
 export class MaskEditor {
@@ -29,9 +36,12 @@ export class MaskEditor {
   private videoEl: HTMLVideoElement;
   private initialRect: Rect;
   private currentRect: Rect;
+  private maskIndex?: number;
+  private totalMasks?: number;
   private onUpdate?: (rect: Rect) => void;
   private onSave?: (rect: Rect) => void | Promise<void>;
   private onExit?: () => void;
+  private onCycleMask?: (delta: 1 | -1) => void;
 
   private isDragging = false;
   private dragMode: DragMode | null = null;
@@ -169,6 +179,15 @@ export class MaskEditor {
       return;
     }
 
+    // Tab / Shift+Tab: Cycle between multiple masks
+    if (e.key === 'Tab' && this.onCycleMask) {
+      e.preventDefault();
+      e.stopPropagation();
+      void this.flushPendingSave();
+      this.onCycleMask(e.shiftKey ? -1 : 1);
+      return;
+    }
+
     // Arrow keys: fine-tune positioning
     if (e.key.startsWith('Arrow')) {
       e.preventDefault();
@@ -205,14 +224,18 @@ export class MaskEditor {
     this.videoEl = options.videoEl;
     this.initialRect = { ...options.initialRect };
     this.currentRect = { ...options.initialRect };
+    this.maskIndex = options.maskIndex;
+    this.totalMasks = options.totalMasks;
     this.onUpdate = options.onUpdate;
     this.onSave = options.onSave;
     this.onExit = options.onExit;
+    this.onCycleMask = options.onCycleMask;
 
     this.setup();
   }
 
   private setup(): void {
+    this.maskEl.classList.remove('atf-editing-inactive');
     this.maskEl.classList.add('atf-editing');
 
     // Create handle elements
@@ -230,10 +253,19 @@ export class MaskEditor {
     // Create editor info banner
     this.bannerEl = document.createElement('div');
     this.bannerEl.className = 'atf-editing-banner';
-    this.bannerEl.textContent = getEditorMessage(
-      'editingBanner',
-      'Editing Mask · Drag/Resize (Esc: Cancel, Enter: Save)'
-    );
+    if (this.totalMasks && this.totalMasks > 1 && this.maskIndex) {
+      const idxStr = String(this.maskIndex);
+      this.bannerEl.textContent = getEditorMessage(
+        'editingBannerMulti',
+        `Editing Mask #${idxStr} · Tab to switch (Esc: Cancel, Enter: Save)`,
+        [idxStr]
+      );
+    } else {
+      this.bannerEl.textContent = getEditorMessage(
+        'editingBanner',
+        'Editing Mask · Drag/Resize (Esc: Cancel, Enter: Save)'
+      );
+    }
     this.maskEl.appendChild(this.bannerEl);
 
     // Attach pointer listeners
@@ -358,6 +390,16 @@ export class MaskEditor {
     } finally {
       if (this.onExit) {
         this.onExit();
+      }
+    }
+  }
+
+  async flushPendingSave(): Promise<void> {
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+      this.saveDebounceTimer = null;
+      if (this.onSave) {
+        await this.onSave(this.currentRect);
       }
     }
   }

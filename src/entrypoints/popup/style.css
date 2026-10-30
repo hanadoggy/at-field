@@ -199,6 +199,166 @@ input:checked + .slider:before {
   cursor: pointer;
 }
 
+/* Profile Section */
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profile-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.profile-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.profile-select {
+  flex: 1;
+  max-width: 155px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+}
+
+.profile-select:focus {
+  border-color: var(--accent);
+}
+
+.btn-icon {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  border-radius: 5px;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.btn-icon:hover:not(:disabled) {
+  border-color: var(--border-accent);
+  color: var(--accent);
+}
+
+.btn-icon-accent {
+  background-color: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-icon-danger:hover:not(:disabled) {
+  border-color: rgba(255, 77, 79, 0.5);
+  color: var(--danger);
+}
+
+.btn-icon:disabled,
+.btn-chip:disabled,
+.btn-danger-text:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.profile-inline-editor {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.profile-name-input {
+  flex: 1;
+  background-color: var(--bg-card);
+  border: 1px solid var(--accent);
+  color: var(--text-main);
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-size: 12px;
+  outline: none;
+}
+
+/* Mask Selector Chips Bar */
+.mask-selector-panel {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mask-selector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mask-chips-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mask-chips-list {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.mask-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.mask-chip-btn.active {
+  background-color: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.mask-chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  display: inline-block;
+}
+
+.btn-add-mask-chip {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+}
+
 /* Segmented Control (View / Edit) */
 .segmented-control {
   display: flex;

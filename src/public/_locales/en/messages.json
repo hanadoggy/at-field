@@ -196,5 +196,77 @@
   "backupErrorVersion": {
     "message": "Unsupported backup schema version. Please update A.T.Field.",
     "description": "Error message when backup schemaVersion is newer than supported"
+  },
+  "profileLabel": {
+    "message": "Profile",
+    "description": "Profile selector label"
+  },
+  "addProfileTitle": {
+    "message": "Add new profile",
+    "description": "Tooltip for add profile button"
+  },
+  "renameProfileTitle": {
+    "message": "Rename profile",
+    "description": "Tooltip for rename profile button"
+  },
+  "deleteProfileTitle": {
+    "message": "Delete current profile",
+    "description": "Tooltip for delete profile button"
+  },
+  "deleteProfileConfirm": {
+    "message": "Delete profile '$NAME$'?",
+    "description": "Confirmation before deleting a profile",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "profileNamePlaceholder": {
+    "message": "Profile name...",
+    "description": "Placeholder for inline profile name input"
+  },
+  "defaultProfileName": {
+    "message": "Profile $INDEX$",
+    "description": "Default generated name for new profile",
+    "placeholders": {
+      "index": {
+        "content": "$1"
+      }
+    }
+  },
+  "maskListLabel": {
+    "message": "Masks",
+    "description": "Label for mask selector chips"
+  },
+  "maskItemLabel": {
+    "message": "Mask #$INDEX$",
+    "description": "Chip label for an individual mask",
+    "placeholders": {
+      "index": {
+        "content": "$1"
+      }
+    }
+  },
+  "addMaskItemButton": {
+    "message": "+ Add",
+    "description": "Button to add another mask to the current profile"
+  },
+  "deleteSelectedMask": {
+    "message": "Delete Selected Mask",
+    "description": "Button to delete currently selected mask"
+  },
+  "deletePresetAll": {
+    "message": "Delete Channel Preset",
+    "description": "Button to delete entire channel preset"
+  },
+  "editingBannerMulti": {
+    "message": "Editing Mask #$INDEX$ · Click mask or Tab to switch (Esc to cancel, Enter to save)",
+    "description": "In-video editing banner when multiple masks exist",
+    "placeholders": {
+      "index": {
+        "content": "$1"
+      }
+    }
   }
 }

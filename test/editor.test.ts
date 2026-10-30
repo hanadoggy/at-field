@@ -210,3 +210,42 @@ test('MaskEditor - blocks YouTube hotkeys during edit mode but allows typing in 
     env.cleanup();
   }
 });
+
+test('MaskEditor - Tab and Shift+Tab flush pending save and invoke onCycleMask', async () => {
+  const env = createMockEditorEnv();
+  try {
+    const cycleEvents: Array<1 | -1> = [];
+    const savedRects: Rect[] = [];
+
+    const editor = new MaskEditor({
+      maskEl: env.maskEl,
+      playerEl: env.playerEl,
+      videoEl: env.videoEl,
+      initialRect: { x: 0.2, y: 0.2, w: 0.3, h: 0.3 },
+      maskIndex: 1,
+      totalMasks: 2,
+      onSave: async (r) => {
+        savedRects.push({ ...r });
+      },
+      onCycleMask: (delta) => {
+        cycleEvents.push(delta);
+      },
+    });
+
+    // Nudge mask to start debounced save, then immediately press Tab
+    env.dispatchKeyDown({ key: 'ArrowRight', shiftKey: true });
+    const tabRes = env.dispatchKeyDown({ key: 'Tab' });
+    assert.equal(tabRes.defaultPrevented, true);
+
+    const shiftTabRes = env.dispatchKeyDown({ key: 'Tab', shiftKey: true });
+    assert.equal(shiftTabRes.defaultPrevented, true);
+
+    assert.deepEqual(cycleEvents, [1, -1]);
+    assert.equal(savedRects.length, 1);
+    assertRectClose(savedRects[0], { x: 0.21, y: 0.2, w: 0.3, h: 0.3 });
+
+    editor.destroy();
+  } finally {
+    env.cleanup();
+  }
+});

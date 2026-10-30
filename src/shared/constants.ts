@@ -27,6 +27,8 @@ export const DEFAULT_MASK_RECT = {
 } as const satisfies Rect;
 
 export const MIN_MASK_SIZE = 0.02; // Minimum 2% width / height
+export const MAX_PROFILES_PER_CHANNEL = 10;
+export const MAX_MASKS_PER_PROFILE = 8;
 
 export const DEFAULT_OPACITY_SOLID = 1.0;
 export const DEFAULT_OPACITY_BLUR = 0.45;

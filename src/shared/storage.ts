@@ -6,6 +6,8 @@ import {
   DEFAULT_OPACITY_BLUR,
   DEFAULT_OPACITY_SOLID,
   DEFAULT_SETTINGS,
+  MAX_MASKS_PER_PROFILE,
+  MAX_PROFILES_PER_CHANNEL,
   META_KEY,
   MIN_MASK_SIZE,
   SCHEMA_VERSION,
@@ -17,6 +19,7 @@ import type {
   ChannelPreset,
   ImportOptions,
   ImportResult,
+  Mask,
   MaskStyle,
   Profile,
   RawPresetInput,
@@ -336,6 +339,158 @@ export function createDefaultPreset(
         ],
       },
     ],
+  };
+}
+
+export function getActiveProfile(preset: ChannelPreset): Profile {
+  const found = preset.profiles.find((p) => p.id === preset.activeProfileId);
+  if (found) return found;
+  if (preset.profiles[0]) return preset.profiles[0];
+  return {
+    id: 'p_default',
+    name: 'Default',
+    masks: [
+      {
+        id: generateId('m'),
+        rect: { ...DEFAULT_MASK_RECT },
+        style: normalizeStyle(null),
+      },
+    ],
+  };
+}
+
+export function createMaskWithOffset(
+  defaultStyle?: Partial<MaskStyle>,
+  existingRects?: readonly Rect[]
+): Mask {
+  const rects = existingRects || [];
+  let candidate: Rect = { ...DEFAULT_MASK_RECT };
+  const step = 0.04;
+
+  for (let i = 0; i < MAX_MASKS_PER_PROFILE; i++) {
+    const offset = i * step;
+    candidate = normalizeRect({
+      x: DEFAULT_MASK_RECT.x - offset,
+      y: DEFAULT_MASK_RECT.y - offset,
+      w: DEFAULT_MASK_RECT.w,
+      h: DEFAULT_MASK_RECT.h,
+    });
+    const overlaps = rects.some(
+      (r) =>
+        Math.abs(r.x - candidate.x) < 0.015 &&
+        Math.abs(r.y - candidate.y) < 0.015
+    );
+    if (!overlaps) break;
+  }
+
+  return {
+    id: generateId('m'),
+    rect: candidate,
+    style: normalizeStyle(defaultStyle),
+  };
+}
+
+export function addProfileToPreset(
+  preset: ChannelPreset,
+  name: string,
+  defaultStyle?: Partial<MaskStyle>
+): { preset: ChannelPreset; profile: Profile } {
+  if (preset.profiles.length >= MAX_PROFILES_PER_CHANNEL) {
+    const active = getActiveProfile(preset);
+    return { preset, profile: active };
+  }
+  const trimmed = name.trim() || `Profile ${preset.profiles.length + 1}`;
+  const newProfile: Profile = {
+    id: generateId('p'),
+    name: trimmed,
+    masks: [createMaskWithOffset(defaultStyle)],
+  };
+  const updatedPreset: ChannelPreset = {
+    ...preset,
+    activeProfileId: newProfile.id,
+    profiles: [...preset.profiles, newProfile],
+    updatedAt: Date.now(),
+  };
+  return { preset: updatedPreset, profile: newProfile };
+}
+
+export function renameProfileInPreset(
+  preset: ChannelPreset,
+  profileId: string,
+  newName: string
+): ChannelPreset {
+  const trimmed = newName.trim();
+  if (!trimmed) return preset;
+  return {
+    ...preset,
+    profiles: preset.profiles.map((p) =>
+      p.id === profileId ? { ...p, name: trimmed } : p
+    ),
+    updatedAt: Date.now(),
+  };
+}
+
+export function deleteProfileFromPreset(
+  preset: ChannelPreset,
+  profileId: string
+): ChannelPreset {
+  if (preset.profiles.length <= 1) return preset;
+  const remaining = preset.profiles.filter((p) => p.id !== profileId);
+  if (remaining.length === 0) return preset;
+  const nextActiveId = remaining.some((p) => p.id === preset.activeProfileId)
+    ? preset.activeProfileId
+    : remaining[0]!.id;
+  return {
+    ...preset,
+    activeProfileId: nextActiveId,
+    profiles: remaining,
+    updatedAt: Date.now(),
+  };
+}
+
+export function addMaskToProfile(
+  preset: ChannelPreset,
+  profileId: string,
+  defaultStyle?: Partial<MaskStyle>
+): { preset: ChannelPreset; mask: Mask } {
+  const targetProfile =
+    preset.profiles.find((p) => p.id === profileId) || getActiveProfile(preset);
+
+  if (targetProfile.masks.length >= MAX_MASKS_PER_PROFILE) {
+    const lastMask = targetProfile.masks[targetProfile.masks.length - 1]!;
+    return { preset, mask: lastMask };
+  }
+
+  const newMask = createMaskWithOffset(
+    defaultStyle,
+    targetProfile.masks.map((m) => m.rect)
+  );
+
+  const updatedPreset: ChannelPreset = {
+    ...preset,
+    profiles: preset.profiles.map((p) =>
+      p.id === targetProfile.id ? { ...p, masks: [...p.masks, newMask] } : p
+    ),
+    updatedAt: Date.now(),
+  };
+
+  return { preset: updatedPreset, mask: newMask };
+}
+
+export function deleteMaskFromProfile(
+  preset: ChannelPreset,
+  profileId: string,
+  maskId: string
+): ChannelPreset {
+  return {
+    ...preset,
+    profiles: preset.profiles.map((p) => {
+      if (p.id !== profileId) return p;
+      if (p.masks.length <= 1) return p;
+      const filtered = p.masks.filter((m) => m.id !== maskId);
+      return filtered.length > 0 ? { ...p, masks: filtered } : p;
+    }),
+    updatedAt: Date.now(),
   };
 }
 

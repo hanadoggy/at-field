@@ -411,3 +411,61 @@ test('storage exportBackupData and importBackupData - merge and overwrite confli
     );
   });
 });
+
+test('storage profile and mask helpers - add, rename, delete profiles and masks with guardrails', () => {
+  let preset = storage.createDefaultPreset('UC_multi_test_0000000001', 'Multi Test');
+  assert.equal(preset.profiles.length, 1);
+  const initialProfile = storage.getActiveProfile(preset);
+  assert.equal(initialProfile.id, 'p_default');
+  assert.equal(initialProfile.masks.length, 1);
+
+  // 1. Cannot delete the last remaining profile or last remaining mask
+  const unchangedProfileDelete = storage.deleteProfileFromPreset(
+    preset,
+    initialProfile.id
+  );
+  assert.equal(unchangedProfileDelete.profiles.length, 1);
+
+  const unchangedMaskDelete = storage.deleteMaskFromProfile(
+    preset,
+    initialProfile.id,
+    initialProfile.masks[0]!.id
+  );
+  assert.equal(unchangedMaskDelete.profiles[0]!.masks.length, 1);
+
+  // 2. Add a second mask to initial profile -> applies cascade offset so it doesn't overlap
+  const addedMaskRes = storage.addMaskToProfile(preset, initialProfile.id, {
+    type: 'solid',
+    color: '#ff0000',
+  });
+  preset = addedMaskRes.preset;
+  const secondMask = addedMaskRes.mask;
+  const firstMask = preset.profiles[0]!.masks[0]!;
+  assert.equal(preset.profiles[0]!.masks.length, 2);
+  assert.notDeepEqual(secondMask.rect, firstMask.rect);
+  assert.equal(secondMask.style.type, 'solid');
+  assert.equal(secondMask.style.color, '#ff0000');
+
+  // 3. Delete first mask -> leaves second mask
+  preset = storage.deleteMaskFromProfile(preset, initialProfile.id, firstMask.id);
+  assert.equal(preset.profiles[0]!.masks.length, 1);
+  assert.equal(preset.profiles[0]!.masks[0]!.id, secondMask.id);
+
+  // 4. Add a new profile -> switches activeProfileId to the new profile
+  const addedProfileRes = storage.addProfileToPreset(preset, 'Game Stream');
+  preset = addedProfileRes.preset;
+  const gameProfile = addedProfileRes.profile;
+  assert.equal(preset.profiles.length, 2);
+  assert.equal(preset.activeProfileId, gameProfile.id);
+  assert.equal(gameProfile.name, 'Game Stream');
+  assert.equal(gameProfile.masks.length, 1);
+
+  // 5. Rename active profile
+  preset = storage.renameProfileInPreset(preset, gameProfile.id, 'Talk Stream');
+  assert.equal(storage.getActiveProfile(preset).name, 'Talk Stream');
+
+  // 6. Delete active profile -> falls back activeProfileId to remaining profile
+  preset = storage.deleteProfileFromPreset(preset, gameProfile.id);
+  assert.equal(preset.profiles.length, 1);
+  assert.equal(preset.activeProfileId, 'p_default');
+});

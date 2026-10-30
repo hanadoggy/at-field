@@ -1,6 +1,6 @@
 import { getVideoBox, toPx } from './geometry';
 import type { PxBox } from '../types/geometry';
-import type { MaskStyle, Rect } from '../types/schema';
+import type { Mask, MaskStyle, Rect } from '../types/schema';
 
 export function hexToRgba(hex: string, opacity = 1): string {
   if (!hex || typeof hex !== 'string') return `rgba(0, 0, 0, ${opacity})`;
@@ -135,6 +135,41 @@ export function createMaskElement(
 
   insertMaskIntoPlayer(maskEl, playerEl);
   return maskEl;
+}
+
+/**
+ * Synchronizes all masks of the active profile inside #movie_player,
+ * updating styles and positions, and removing any stale mask DOM elements.
+ */
+export function syncProfileMasks(
+  playerEl: HTMLElement,
+  videoEl: HTMLVideoElement,
+  masks: readonly Mask[]
+): Map<string, HTMLElement> {
+  const activeMap = new Map<string, HTMLElement>();
+
+  for (let i = 0; i < masks.length; i++) {
+    const maskData = masks[i]!;
+    const maskEl = createMaskElement(playerEl, maskData.id);
+    maskEl.setAttribute('data-atf-mask-index', String(i + 1));
+
+    const filterEl =
+      maskEl.querySelector<HTMLElement>('.atf-mask-filter') || maskEl;
+    applyMaskStyle(filterEl, maskData.style);
+    updateMaskPosition(maskEl, maskData.rect, playerEl, videoEl);
+
+    activeMap.set(maskData.id, maskEl);
+  }
+
+  const existing = playerEl.querySelectorAll<HTMLElement>('.atf-mask');
+  for (const el of existing) {
+    const id = el.getAttribute('data-atf-mask-id');
+    if (!id || !activeMap.has(id)) {
+      el.remove();
+    }
+  }
+
+  return activeMap;
 }
 
 /**

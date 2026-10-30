@@ -196,5 +196,77 @@
   "backupErrorVersion": {
     "message": "지원하지 않는 상위 버전의 백업 파일입니다. 확장 기능을 업데이트해주세요.",
     "description": "Error message when backup schemaVersion is newer than supported"
+  },
+  "profileLabel": {
+    "message": "프로필",
+    "description": "Profile selector label"
+  },
+  "addProfileTitle": {
+    "message": "새 프로필 추가",
+    "description": "Tooltip for add profile button"
+  },
+  "renameProfileTitle": {
+    "message": "프로필 이름 변경",
+    "description": "Tooltip for rename profile button"
+  },
+  "deleteProfileTitle": {
+    "message": "현재 프로필 삭제",
+    "description": "Tooltip for delete profile button"
+  },
+  "deleteProfileConfirm": {
+    "message": "'$NAME$' 프로필을 삭제하시겠습니까?",
+    "description": "Confirmation before deleting a profile",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "profileNamePlaceholder": {
+    "message": "프로필 이름 입력...",
+    "description": "Placeholder for inline profile name input"
+  },
+  "defaultProfileName": {
+    "message": "프로필 $INDEX$",
+    "description": "Default generated name for new profile",
+    "placeholders": {
+      "index": {
+        "content": "$1"
+      }
+    }
+  },
+  "maskListLabel": {
+    "message": "마스크 목록",
+    "description": "Label for mask selector chips"
+  },
+  "maskItemLabel": {
+    "message": "마스크 #$INDEX$",
+    "description": "Chip label for an individual mask",
+    "placeholders": {
+      "index": {
+        "content": "$1"
+      }
+    }
+  },
+  "addMaskItemButton": {
+    "message": "+ 추가",
+    "description": "Button to add another mask to the current profile"
+  },
+  "deleteSelectedMask": {
+    "message": "선택 마스크 삭제",
+    "description": "Button to delete currently selected mask"
+  },
+  "deletePresetAll": {
+    "message": "채널 설정 전체 삭제",
+    "description": "Button to delete entire channel preset"
+  },
+  "editingBannerMulti": {
+    "message": "마스크 #$INDEX$ 편집 중 · 다른 마스크 클릭 또는 Tab으로 전환 (Esc 취소, Enter 완료)",
+    "description": "In-video editing banner when multiple masks exist",
+    "placeholders": {
+      "index": {
+        "content": "$1"
+      }
+    }
   }
 }

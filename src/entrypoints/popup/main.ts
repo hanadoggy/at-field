@@ -1,4 +1,8 @@
 import { getExtensionApi } from '../../shared/browser-api';
+import {
+  MAX_MASKS_PER_PROFILE,
+  MAX_PROFILES_PER_CHANNEL,
+} from '../../shared/constants';
 import { getRequiredElement } from '../../shared/dom';
 import { applyI18n, getMessage } from '../../shared/i18n';
 import {
@@ -7,13 +11,24 @@ import {
   type AtfResponseMap,
 } from '../../shared/messages';
 import {
+  addMaskToProfile,
+  addProfileToPreset,
+  deleteMaskFromProfile,
   deletePreset,
+  deleteProfileFromPreset,
+  getActiveProfile,
   getSettings,
+  renameProfileInPreset,
   setSettings,
   updatePreset,
 } from '../../shared/storage';
 import type { ChannelInfo } from '../../types/channel';
-import type { ChannelPreset, MaskStyle, Settings } from '../../types/schema';
+import type {
+  ChannelPreset,
+  Mask,
+  MaskStyle,
+  Settings,
+} from '../../types/schema';
 
 // DOM Elements
 const globalToggle = getRequiredElement<HTMLInputElement>('global-toggle');
@@ -34,8 +49,30 @@ const hasPresetChannelName = getRequiredElement<HTMLElement>(
   'has-preset-channel-name'
 );
 const channelToggle = getRequiredElement<HTMLInputElement>('channel-toggle');
+
+const profileSelect = getRequiredElement<HTMLSelectElement>('profile-select');
+const btnProfileAdd = getRequiredElement<HTMLButtonElement>('btn-profile-add');
+const btnProfileRename =
+  getRequiredElement<HTMLButtonElement>('btn-profile-rename');
+const btnProfileDelete =
+  getRequiredElement<HTMLButtonElement>('btn-profile-delete');
+const profileInlineEditor = getRequiredElement<HTMLElement>(
+  'profile-inline-editor'
+);
+const inputProfileName =
+  getRequiredElement<HTMLInputElement>('input-profile-name');
+const btnProfileSave =
+  getRequiredElement<HTMLButtonElement>('btn-profile-save');
+const btnProfileCancel =
+  getRequiredElement<HTMLButtonElement>('btn-profile-cancel');
+
 const btnModeView = getRequiredElement<HTMLButtonElement>('btn-mode-view');
 const btnModeEdit = getRequiredElement<HTMLButtonElement>('btn-mode-edit');
+
+const maskChipsList = getRequiredElement<HTMLElement>('mask-chips-list');
+const btnAddMaskItem =
+  getRequiredElement<HTMLButtonElement>('btn-add-mask-item');
+const btnDeleteMask = getRequiredElement<HTMLButtonElement>('btn-delete-mask');
 
 const chipBlur = getRequiredElement<HTMLButtonElement>('chip-blur');
 const chipSolid = getRequiredElement<HTMLButtonElement>('chip-solid');
@@ -57,6 +94,8 @@ let activeTabId: number | null | undefined = null;
 let currentSettings: Settings | null = null;
 let currentChannel: ChannelInfo | null = null;
 let currentPreset: ChannelPreset | null = null;
+let selectedMaskId: string | null = null;
+let profileEditAction: 'add' | 'rename' | null = null;
 let isEditing = false;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let channelDetectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -136,7 +175,46 @@ function updateModeButtons(editing: boolean): void {
   }
 }
 
-function updateStyleControls(style: Partial<MaskStyle> | null | undefined): void {
+function getSelectedMask(): Mask | null {
+  if (!currentPreset) return null;
+  const activeProfile = getActiveProfile(currentPreset);
+  if (selectedMaskId) {
+    const found = activeProfile.masks.find((m) => m.id === selectedMaskId);
+    if (found) return found;
+  }
+  const fallback = activeProfile.masks[0] ?? null;
+  selectedMaskId = fallback ? fallback.id : null;
+  return fallback;
+}
+
+function closeProfileInlineEditor(): void {
+  profileEditAction = null;
+  profileInlineEditor.classList.add('hidden');
+  inputProfileName.value = '';
+}
+
+function openProfileInlineEditor(action: 'add' | 'rename'): void {
+  if (!currentPreset) return;
+  profileEditAction = action;
+  if (action === 'add') {
+    const nextIdx = String(currentPreset.profiles.length + 1);
+    const defName = getMessage('defaultProfileName', [nextIdx]);
+    inputProfileName.value =
+      defName && defName !== 'defaultProfileName'
+        ? defName
+        : `Profile ${nextIdx}`;
+  } else {
+    const activeProfile = getActiveProfile(currentPreset);
+    inputProfileName.value = activeProfile.name;
+  }
+  profileInlineEditor.classList.remove('hidden');
+  inputProfileName.focus();
+  inputProfileName.select();
+}
+
+function updateStyleControls(
+  style: Partial<MaskStyle> | null | undefined
+): void {
   if (!style) return;
 
   if (style.type === 'solid') {
@@ -163,26 +241,92 @@ function updateStyleControls(style: Partial<MaskStyle> | null | undefined): void
   blurValDisplay.textContent = `${blurVal}px`;
 }
 
+function renderProfileAndMaskControls(): void {
+  if (!currentPreset) return;
+  const activeProfile = getActiveProfile(currentPreset);
+  const selectedMask = getSelectedMask();
+
+  // 1. Render profile select options
+  profileSelect.replaceChildren();
+  for (const prof of currentPreset.profiles) {
+    const opt = document.createElement('option');
+    opt.value = prof.id;
+    opt.textContent = prof.name;
+    opt.selected = prof.id === activeProfile.id;
+    profileSelect.appendChild(opt);
+  }
+  profileSelect.value = activeProfile.id;
+
+  btnProfileAdd.disabled =
+    currentPreset.profiles.length >= MAX_PROFILES_PER_CHANNEL;
+  btnProfileDelete.disabled = currentPreset.profiles.length <= 1;
+
+  // 2. Render mask chips
+  maskChipsList.replaceChildren();
+  activeProfile.masks.forEach((mask, idx) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'mask-chip-btn';
+    if (selectedMask && mask.id === selectedMask.id) {
+      btn.classList.add('active');
+    }
+
+    const dot = document.createElement('span');
+    dot.className = 'mask-chip-dot';
+    dot.style.backgroundColor = mask.style.color || '#000000';
+
+    const label = document.createElement('span');
+    const idxStr = String(idx + 1);
+    const i18nLabel = getMessage('maskItemLabel', [idxStr]);
+    label.textContent =
+      i18nLabel && i18nLabel !== 'maskItemLabel' ? i18nLabel : `#${idxStr}`;
+
+    btn.appendChild(dot);
+    btn.appendChild(label);
+
+    btn.addEventListener('click', async () => {
+      selectedMaskId = mask.id;
+      renderProfileAndMaskControls();
+      await sendMessageToTab({
+        type: MESSAGE_TYPES.SELECT_MASK,
+        maskId: mask.id,
+      });
+    });
+
+    maskChipsList.appendChild(btn);
+  });
+
+  btnAddMaskItem.disabled = activeProfile.masks.length >= MAX_MASKS_PER_PROFILE;
+  btnDeleteMask.disabled = activeProfile.masks.length <= 1;
+
+  if (selectedMask) {
+    updateStyleControls(selectedMask.style);
+  }
+}
+
 function triggerPresetSave(): void {
   if (!currentPreset) return;
   if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(async () => {
-    if (!currentPreset) return;
-    const presetSnapshot = currentPreset;
-    const channelId = presetSnapshot.channelId;
-    const activeProfile = presetSnapshot.profiles.find(
-      (p) => p.id === presetSnapshot.activeProfileId
-    );
-    const currentMask = activeProfile && activeProfile.masks[0];
-    if (!currentMask) return;
+  const targetChannelId = currentPreset.channelId;
+  const activeProfile = getActiveProfile(currentPreset);
+  const currentMask = getSelectedMask();
+  if (!currentMask) return;
 
-    await updatePreset(channelId, (latest) => {
-      latest.enabled = presetSnapshot.enabled;
-      const p =
-        latest.profiles.find((pr) => pr.id === latest.activeProfileId) ||
-        latest.profiles[0];
-      if (p && p.masks[0]) {
-        p.masks[0].style = { ...currentMask.style };
+  const targetProfileId = activeProfile.id;
+  const targetMaskId = currentMask.id;
+  const styleSnapshot: MaskStyle = { ...currentMask.style };
+  const enabledSnapshot = currentPreset.enabled;
+
+  saveTimer = setTimeout(async () => {
+    await updatePreset(targetChannelId, (latest) => {
+      latest.enabled = enabledSnapshot;
+      const prof =
+        latest.profiles.find((pr) => pr.id === targetProfileId) ||
+        getActiveProfile(latest);
+      const mask =
+        prof.masks.find((m) => m.id === targetMaskId) || prof.masks[0];
+      if (mask) {
+        mask.style = { ...styleSnapshot };
       }
       return latest;
     });
@@ -213,7 +357,6 @@ async function refresh(): Promise<void> {
 
   const state = await sendMessageToTab({ type: MESSAGE_TYPES.GET_STATE });
   if (!state) {
-    // Content script didn't answer or page is not /watch
     if (!tab.url.includes('/watch')) {
       showBanner(
         getMessage('statusNotYouTube') || 'Not on a YouTube video page',
@@ -275,6 +418,7 @@ async function refresh(): Promise<void> {
 
   currentChannel = state.channel;
   currentPreset = state.preset;
+  selectedMaskId = state.selectedMaskId ?? selectedMaskId;
   updateModeButtons(state.editMode);
 
   if (!state.hasPreset || !currentPreset) {
@@ -287,18 +431,12 @@ async function refresh(): Promise<void> {
 
   // Has Preset
   hideAllStates();
+  closeProfileInlineEditor();
   hasPresetChannelName.textContent =
     currentPreset.channelName || currentChannel.channelName;
   channelToggle.checked = currentPreset.enabled !== false;
 
-  const preset = currentPreset;
-  const activeProfile = preset.profiles.find(
-    (p) => p.id === preset.activeProfileId
-  );
-  const maskData = activeProfile && activeProfile.masks[0];
-  if (maskData) {
-    updateStyleControls(maskData.style);
-  }
+  renderProfileAndMaskControls();
 
   stateHasPreset.classList.remove('hidden');
 }
@@ -315,6 +453,7 @@ btnAddMask.addEventListener('click', async () => {
   btnAddMask.disabled = false;
   if (res && res.success) {
     currentPreset = res.preset;
+    selectedMaskId = null;
     refresh();
   }
 });
@@ -325,7 +464,12 @@ btnModeView.addEventListener('click', async () => {
 });
 
 btnModeEdit.addEventListener('click', async () => {
-  await sendMessageToTab({ type: MESSAGE_TYPES.SET_EDIT_MODE, on: true });
+  const mask = getSelectedMask();
+  await sendMessageToTab({
+    type: MESSAGE_TYPES.SET_EDIT_MODE,
+    on: true,
+    ...(mask ? { maskId: mask.id } : {}),
+  });
   updateModeButtons(true);
 });
 
@@ -342,63 +486,230 @@ channelToggle.addEventListener('change', async () => {
   });
 });
 
-chipBlur.addEventListener('click', () => {
+// Profile Event Handlers
+profileSelect.addEventListener('change', async () => {
   if (!currentPreset) return;
-  const preset = currentPreset;
-  const profile = preset.profiles.find((p) => p.id === preset.activeProfileId);
-  const firstMask = profile && profile.masks[0];
-  if (!firstMask) return;
-  firstMask.style.type = 'blur';
-  if (firstMask.style.opacity === 1.0) {
-    firstMask.style.opacity = 0.45;
+  const nextProfileId = profileSelect.value;
+  closeProfileInlineEditor();
+  currentPreset.activeProfileId = nextProfileId;
+  selectedMaskId = null;
+
+  const updated = await updatePreset(currentPreset.channelId, (latest) => {
+    latest.activeProfileId = nextProfileId;
+    return latest;
+  });
+  if (updated) currentPreset = updated;
+
+  const firstMask = getSelectedMask();
+  renderProfileAndMaskControls();
+  if (firstMask) {
+    await sendMessageToTab({
+      type: MESSAGE_TYPES.SELECT_MASK,
+      maskId: firstMask.id,
+    });
   }
-  updateStyleControls(firstMask.style);
+});
+
+btnProfileAdd.addEventListener('click', () => {
+  openProfileInlineEditor('add');
+});
+
+btnProfileRename.addEventListener('click', () => {
+  openProfileInlineEditor('rename');
+});
+
+async function commitProfileInlineEdit(): Promise<void> {
+  if (!currentPreset || !profileEditAction) return;
+  const name = inputProfileName.value.trim();
+  if (!name) {
+    closeProfileInlineEditor();
+    return;
+  }
+
+  const action = profileEditAction;
+  closeProfileInlineEditor();
+
+  if (action === 'add') {
+    let createdMaskId: string | null = null;
+    const updated = await updatePreset(currentPreset.channelId, (latest) => {
+      const res = addProfileToPreset(
+        latest,
+        name,
+        currentSettings ? currentSettings.defaultStyle : undefined
+      );
+      createdMaskId = res.profile.masks[0]?.id ?? null;
+      return res.preset;
+    });
+    if (updated) {
+      currentPreset = updated;
+      selectedMaskId = createdMaskId;
+      renderProfileAndMaskControls();
+      if (createdMaskId) {
+        await sendMessageToTab({
+          type: MESSAGE_TYPES.SELECT_MASK,
+          maskId: createdMaskId,
+        });
+      }
+    }
+  } else if (action === 'rename') {
+    const activeProfile = getActiveProfile(currentPreset);
+    const updated = await updatePreset(currentPreset.channelId, (latest) =>
+      renameProfileInPreset(latest, activeProfile.id, name)
+    );
+    if (updated) {
+      currentPreset = updated;
+      renderProfileAndMaskControls();
+    }
+  }
+}
+
+btnProfileSave.addEventListener('click', () => {
+  void commitProfileInlineEdit();
+});
+
+btnProfileCancel.addEventListener('click', () => {
+  closeProfileInlineEditor();
+});
+
+inputProfileName.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    void commitProfileInlineEdit();
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    closeProfileInlineEditor();
+  }
+});
+
+btnProfileDelete.addEventListener('click', async () => {
+  if (!currentPreset || currentPreset.profiles.length <= 1) return;
+  const activeProfile = getActiveProfile(currentPreset);
+  const confirmMsg =
+    getMessage('deleteProfileConfirm', [activeProfile.name]) ||
+    `Delete profile '${activeProfile.name}'?`;
+  if (!window.confirm(confirmMsg)) return;
+
+  closeProfileInlineEditor();
+  const updated = await updatePreset(currentPreset.channelId, (latest) =>
+    deleteProfileFromPreset(latest, activeProfile.id)
+  );
+  if (updated) {
+    currentPreset = updated;
+    selectedMaskId = null;
+    renderProfileAndMaskControls();
+    const firstMask = getSelectedMask();
+    if (firstMask) {
+      await sendMessageToTab({
+        type: MESSAGE_TYPES.SELECT_MASK,
+        maskId: firstMask.id,
+      });
+    }
+  }
+});
+
+// Mask Item Event Handlers
+btnAddMaskItem.addEventListener('click', async () => {
+  if (!currentPreset) return;
+  const activeProfile = getActiveProfile(currentPreset);
+  if (activeProfile.masks.length >= MAX_MASKS_PER_PROFILE) return;
+
+  let newMaskId: string | null = null;
+  const updated = await updatePreset(currentPreset.channelId, (latest) => {
+    const res = addMaskToProfile(
+      latest,
+      activeProfile.id,
+      currentSettings ? currentSettings.defaultStyle : undefined
+    );
+    newMaskId = res.mask.id;
+    return res.preset;
+  });
+
+  if (updated && newMaskId) {
+    currentPreset = updated;
+    selectedMaskId = newMaskId;
+    renderProfileAndMaskControls();
+    await sendMessageToTab({
+      type: MESSAGE_TYPES.SET_EDIT_MODE,
+      on: true,
+      maskId: newMaskId,
+    });
+    updateModeButtons(true);
+  }
+});
+
+btnDeleteMask.addEventListener('click', async () => {
+  if (!currentPreset) return;
+  const activeProfile = getActiveProfile(currentPreset);
+  if (activeProfile.masks.length <= 1) return;
+  const targetMask = getSelectedMask();
+  if (!targetMask) return;
+
+  const updated = await updatePreset(currentPreset.channelId, (latest) =>
+    deleteMaskFromProfile(latest, activeProfile.id, targetMask.id)
+  );
+  if (updated) {
+    currentPreset = updated;
+    selectedMaskId = null;
+    const nextMask = getSelectedMask();
+    renderProfileAndMaskControls();
+    if (nextMask) {
+      await sendMessageToTab({
+        type: MESSAGE_TYPES.SELECT_MASK,
+        maskId: nextMask.id,
+      });
+    }
+  }
+});
+
+// Style Event Handlers
+chipBlur.addEventListener('click', () => {
+  const mask = getSelectedMask();
+  if (!mask) return;
+  mask.style.type = 'blur';
+  if (mask.style.opacity === 1.0) {
+    mask.style.opacity = 0.45;
+  }
+  updateStyleControls(mask.style);
   triggerPresetSave();
 });
 
 chipSolid.addEventListener('click', () => {
-  if (!currentPreset) return;
-  const preset = currentPreset;
-  const profile = preset.profiles.find((p) => p.id === preset.activeProfileId);
-  const firstMask = profile && profile.masks[0];
-  if (!firstMask) return;
-  firstMask.style.type = 'solid';
-  firstMask.style.opacity = 1.0;
-  updateStyleControls(firstMask.style);
+  const mask = getSelectedMask();
+  if (!mask) return;
+  mask.style.type = 'solid';
+  mask.style.opacity = 1.0;
+  updateStyleControls(mask.style);
   triggerPresetSave();
 });
 
 inputColor.addEventListener('input', () => {
-  if (!currentPreset) return;
-  const preset = currentPreset;
-  const profile = preset.profiles.find((p) => p.id === preset.activeProfileId);
-  const firstMask = profile && profile.masks[0];
-  if (!firstMask) return;
-  firstMask.style.color = inputColor.value;
+  const mask = getSelectedMask();
+  if (!mask) return;
+  mask.style.color = inputColor.value;
   colorHexDisplay.textContent = inputColor.value.toUpperCase();
+  const activeChipDot = maskChipsList.querySelector<HTMLElement>(
+    '.mask-chip-btn.active .mask-chip-dot'
+  );
+  if (activeChipDot) {
+    activeChipDot.style.backgroundColor = inputColor.value;
+  }
   triggerPresetSave();
 });
 
 inputOpacity.addEventListener('input', () => {
-  if (!currentPreset) return;
-  const preset = currentPreset;
-  const profile = preset.profiles.find((p) => p.id === preset.activeProfileId);
-  const firstMask = profile && profile.masks[0];
-  if (!firstMask) return;
+  const mask = getSelectedMask();
+  if (!mask) return;
   const pct = parseInt(inputOpacity.value, 10);
-  firstMask.style.opacity = pct / 100;
+  mask.style.opacity = pct / 100;
   opacityValDisplay.textContent = `${pct}%`;
   triggerPresetSave();
 });
 
 inputBlur.addEventListener('input', () => {
-  if (!currentPreset) return;
-  const preset = currentPreset;
-  const profile = preset.profiles.find((p) => p.id === preset.activeProfileId);
-  const firstMask = profile && profile.masks[0];
-  if (!firstMask) return;
+  const mask = getSelectedMask();
+  if (!mask) return;
   const blurPx = parseInt(inputBlur.value, 10);
-  firstMask.style.blur = blurPx;
+  mask.style.blur = blurPx;
   blurValDisplay.textContent = `${blurPx}px`;
   triggerPresetSave();
 });
@@ -412,6 +723,7 @@ btnDeletePreset.addEventListener('click', async () => {
   await deletePreset(currentPreset.channelId);
   await sendMessageToTab({ type: MESSAGE_TYPES.SET_EDIT_MODE, on: false });
   currentPreset = null;
+  selectedMaskId = null;
   refresh();
 });
 

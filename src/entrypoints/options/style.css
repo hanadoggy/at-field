@@ -341,8 +341,69 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   font-size: 11px;
   color: var(--text-muted);
+}
+
+.card-profile-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.card-profile-select {
+  flex: 1;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  outline: none;
+  cursor: pointer;
+}
+
+.card-profile-select:focus {
+  border-color: var(--accent);
+}
+
+.card-masks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card-mask-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.card-mask-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+
+.btn-mask-delete-inline {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 3px;
+}
+
+.btn-mask-delete-inline:hover {
+  color: var(--danger);
 }
 
 .preset-style-badge {
@@ -368,9 +429,6 @@ body {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
-  background-color: var(--bg-primary);
-  padding: 6px;
-  border-radius: 4px;
   font-family: monospace;
   font-size: 11px;
 }

@@ -8,9 +8,8 @@ import {
 import { MaskEditor } from '../../content/editor';
 import { getExclusionReason, observeExclusions } from '../../content/exclusion';
 import {
-  applyMaskStyle,
-  createMaskElement,
   removeAllMasks,
+  syncProfileMasks,
   updateMaskPosition,
 } from '../../content/mask';
 import { getExtensionApi } from '../../shared/browser-api';
@@ -18,6 +17,7 @@ import { CHANNEL_KEY_PREFIX, SETTINGS_KEY } from '../../shared/constants';
 import { MESSAGE_TYPES, type AtfRequest } from '../../shared/messages';
 import {
   createDefaultPreset,
+  getActiveProfile,
   getPreset,
   getSettings,
   migrate,
@@ -35,7 +35,8 @@ function isAtfRequest(msg: unknown): msg is AtfRequest {
     type === MESSAGE_TYPES.GET_STATE ||
     type === MESSAGE_TYPES.SET_EDIT_MODE ||
     type === MESSAGE_TYPES.TOGGLE_EDIT_MODE ||
-    type === MESSAGE_TYPES.CREATE_PRESET
+    type === MESSAGE_TYPES.CREATE_PRESET ||
+    type === MESSAGE_TYPES.SELECT_MASK
   );
 }
 
@@ -51,7 +52,9 @@ export default defineContentScript({
     let isEditMode = false;
     let isTogglingEditMode = false;
     let activeEditor: MaskEditor | null = null;
-    let currentMaskEl: HTMLElement | null = null;
+    let maskElements = new Map<string, HTMLElement>();
+    let selectedMaskId: string | null = null;
+    let inactiveMaskCleanups: Array<() => void> = [];
     let navGeneration = 0;
     let syncGeneration = 0;
 
@@ -63,6 +66,34 @@ export default defineContentScript({
     let resizeObserver: ResizeObserver | null = null;
     let animFrameId: number | null = null;
     let unobserveExclusions: (() => void) | null = null;
+
+    function clearInactiveMaskListeners(): void {
+      for (const cleanup of inactiveMaskCleanups) {
+        cleanup();
+      }
+      inactiveMaskCleanups = [];
+    }
+
+    function clearAllMasksFromDOM(): void {
+      clearInactiveMaskListeners();
+      if (playerEl) removeAllMasks(playerEl);
+      maskElements.clear();
+    }
+
+    function ensureSelectedMask(preset: ChannelPreset | null): Mask | null {
+      if (!preset || !preset.profiles || preset.profiles.length === 0) {
+        selectedMaskId = null;
+        return null;
+      }
+      const activeProfile = getActiveProfile(preset);
+      if (selectedMaskId) {
+        const matched = activeProfile.masks.find((m) => m.id === selectedMaskId);
+        if (matched) return matched;
+      }
+      const first = activeProfile.masks[0] ?? null;
+      selectedMaskId = first ? first.id : null;
+      return first;
+    }
 
     function ensurePlayerElements(): boolean {
       if (
@@ -81,60 +112,54 @@ export default defineContentScript({
       animFrameId = requestAnimationFrame(() => {
         animFrameId = null;
         ensurePlayerElements();
-        if (currentMaskEl && currentPreset && playerEl && videoEl) {
-          const preset = currentPreset;
-          const activeProfile =
-            preset.profiles &&
-            preset.profiles.find((p) => p.id === preset.activeProfileId);
-          const maskData =
-            activeProfile && activeProfile.masks && activeProfile.masks[0];
-          if (maskData) {
-            updateMaskPosition(currentMaskEl, maskData.rect, playerEl, videoEl);
-            if (activeEditor) {
-              activeEditor.refresh();
+        if (currentPreset && playerEl && videoEl && maskElements.size > 0) {
+          const activeProfile = getActiveProfile(currentPreset);
+          for (const maskData of activeProfile.masks) {
+            const el = maskElements.get(maskData.id);
+            if (el) {
+              updateMaskPosition(el, maskData.rect, playerEl, videoEl);
             }
+          }
+          if (activeEditor) {
+            activeEditor.refresh();
           }
         }
       });
     }
 
-    function setEditMode(on: boolean): void {
-      if (isEditMode === on) return;
-      isEditMode = on;
-
-      if (!isEditMode) {
-        if (activeEditor) {
-          activeEditor.destroy();
-          activeEditor = null;
-        }
-        return;
+    function bindEditorToSelectedMask(): void {
+      if (activeEditor) {
+        activeEditor.destroy();
+        activeEditor = null;
       }
+      clearInactiveMaskListeners();
 
-      // Entering Edit Mode
-      if (!currentPreset || !playerEl || !videoEl || !currentMaskEl) {
+      if (!isEditMode || !currentPreset || !playerEl || !videoEl) {
         isEditMode = false;
         return;
       }
 
-      const presetForInit = currentPreset;
-      const activeProfile = presetForInit.profiles.find(
-        (p) => p.id === presetForInit.activeProfileId
-      );
-      const maskData = activeProfile && activeProfile.masks[0];
+      const activeProfile = getActiveProfile(currentPreset);
+      const maskData = ensureSelectedMask(currentPreset);
       if (!maskData) {
         isEditMode = false;
         return;
       }
 
       const targetMaskId = maskData.id;
+      const targetMaskEl = maskElements.get(targetMaskId);
+      if (!targetMaskEl) {
+        isEditMode = false;
+        return;
+      }
+
+      const maskIndex =
+        activeProfile.masks.findIndex((m) => m.id === targetMaskId) + 1;
+      const totalMasks = activeProfile.masks.length;
 
       function getTargetMask(): Mask | null {
         if (!currentPreset || !currentPreset.profiles) return null;
-        const preset = currentPreset;
-        const profile = preset.profiles.find(
-          (p) => p.id === preset.activeProfileId
-        );
-        if (!profile || !profile.masks) return null;
+        const profile = getActiveProfile(currentPreset);
         return (
           profile.masks.find((m) => m.id === targetMaskId) ||
           profile.masks[0] ||
@@ -142,13 +167,13 @@ export default defineContentScript({
         );
       }
 
-      if (activeEditor) activeEditor.destroy();
-
       activeEditor = new MaskEditor({
-        maskEl: currentMaskEl,
+        maskEl: targetMaskEl,
         playerEl,
         videoEl,
         initialRect: maskData.rect,
+        maskIndex,
+        totalMasks,
         onUpdate: (updatedRect) => {
           const target = getTargetMask();
           if (target) {
@@ -167,7 +192,72 @@ export default defineContentScript({
         onExit: () => {
           setEditMode(false);
         },
+        onCycleMask: (delta) => {
+          if (!currentPreset) return;
+          const profile = getActiveProfile(currentPreset);
+          const len = profile.masks.length;
+          if (len <= 1) return;
+          const curIdx = profile.masks.findIndex((m) => m.id === targetMaskId);
+          const nextIdx = ((curIdx >= 0 ? curIdx : 0) + delta + len) % len;
+          const nextMask = profile.masks[nextIdx];
+          if (nextMask) {
+            selectedMaskId = nextMask.id;
+            bindEditorToSelectedMask();
+          }
+        },
       });
+
+      // Make non-selected masks clickable in edit mode to switch selection
+      for (const m of activeProfile.masks) {
+        if (m.id === targetMaskId) continue;
+        const el = maskElements.get(m.id);
+        if (!el) continue;
+
+        el.classList.add('atf-editing-inactive');
+        const onPointerDown = (e: PointerEvent): void => {
+          if (e.button !== 0) return;
+          e.preventDefault();
+          e.stopPropagation();
+          if (activeEditor) {
+            void activeEditor.flushPendingSave();
+          }
+          selectedMaskId = m.id;
+          bindEditorToSelectedMask();
+        };
+        const onPreventNative = (e: Event): void => {
+          e.stopPropagation();
+        };
+
+        el.addEventListener('pointerdown', onPointerDown);
+        el.addEventListener('click', onPreventNative);
+        el.addEventListener('dblclick', onPreventNative);
+
+        inactiveMaskCleanups.push(() => {
+          el.classList.remove('atf-editing-inactive');
+          el.removeEventListener('pointerdown', onPointerDown);
+          el.removeEventListener('click', onPreventNative);
+          el.removeEventListener('dblclick', onPreventNative);
+        });
+      }
+    }
+
+    function setEditMode(on: boolean, maskId?: string): void {
+      if (maskId) {
+        selectedMaskId = maskId;
+      }
+
+      if (!on) {
+        isEditMode = false;
+        if (activeEditor) {
+          activeEditor.destroy();
+          activeEditor = null;
+        }
+        clearInactiveMaskListeners();
+        return;
+      }
+
+      isEditMode = true;
+      bindEditorToSelectedMask();
     }
 
     async function sync(): Promise<void> {
@@ -184,15 +274,13 @@ export default defineContentScript({
         exclusionReason !== null
       ) {
         if (isEditMode) setEditMode(false);
-        if (playerEl) removeAllMasks(playerEl);
-        currentMaskEl = null;
+        clearAllMasksFromDOM();
         return;
       }
 
       // Channel check
       if (!currentChannel) {
-        if (playerEl) removeAllMasks(playerEl);
-        currentMaskEl = null;
+        clearAllMasksFromDOM();
         return;
       }
 
@@ -213,39 +301,25 @@ export default defineContentScript({
       // If channel preset doesn't exist or is disabled
       if (!currentPreset || !currentPreset.enabled) {
         if (isEditMode) setEditMode(false);
-        if (playerEl) removeAllMasks(playerEl);
-        currentMaskEl = null;
+        clearAllMasksFromDOM();
         return;
       }
 
       // Preset is active! Ensure elements
       if (!ensurePlayerElements() || !playerEl || !videoEl) return;
 
-      const preset = currentPreset;
-      const activeProfile =
-        preset.profiles &&
-        preset.profiles.find((p) => p.id === preset.activeProfileId);
-      const maskData =
-        activeProfile && activeProfile.masks && activeProfile.masks[0];
-      if (!maskData) return;
-
-      // Create or re-attach mask element if disconnected
-      if (!currentMaskEl || !currentMaskEl.isConnected) {
-        currentMaskEl = createMaskElement(playerEl, maskData.id);
+      const activeProfile = getActiveProfile(currentPreset);
+      if (!activeProfile.masks || activeProfile.masks.length === 0) {
+        clearAllMasksFromDOM();
+        return;
       }
-      const filterEl =
-        currentMaskEl.querySelector<HTMLElement>('.atf-mask-filter') ||
-        currentMaskEl;
-      applyMaskStyle(filterEl, maskData.style);
-      updateMaskPosition(currentMaskEl, maskData.rect, playerEl, videoEl);
 
-      // If edit mode was on, maintain editor
+      maskElements = syncProfileMasks(playerEl, videoEl, activeProfile.masks);
+      ensureSelectedMask(currentPreset);
+
+      // If edit mode was on, maintain editor bound to selected mask
       if (isEditMode) {
-        if (!activeEditor) {
-          setEditMode(true);
-        } else {
-          activeEditor.refresh();
-        }
+        bindEditorToSelectedMask();
       }
     }
 
@@ -253,8 +327,8 @@ export default defineContentScript({
       const myNavGen = ++navGeneration;
 
       // Immediately clear mask when navigation starts/finishes to prevent flicker
-      if (playerEl) removeAllMasks(playerEl);
-      currentMaskEl = null;
+      clearAllMasksFromDOM();
+      selectedMaskId = null;
       if (isEditMode) setEditMode(false);
 
       if (window.location.pathname !== '/watch') {
@@ -375,6 +449,7 @@ export default defineContentScript({
       if (message.type === MESSAGE_TYPES.GET_STATE) {
         const isWatch = window.location.pathname === '/watch';
         const exclusionReason = getExclusionReason();
+        const selected = ensureSelectedMask(currentPreset);
         sendResponse({
           isWatch,
           exclusionReason,
@@ -385,6 +460,7 @@ export default defineContentScript({
             currentPreset.profiles.length > 0
           ),
           preset: currentPreset || null,
+          selectedMaskId: selected ? selected.id : null,
           editMode: isEditMode,
           globalEnabled: currentSettings
             ? currentSettings.enabled !== false
@@ -394,8 +470,21 @@ export default defineContentScript({
       }
 
       if (message.type === MESSAGE_TYPES.SET_EDIT_MODE) {
-        setEditMode(!!message.on);
-        sendResponse({ editMode: isEditMode });
+        setEditMode(!!message.on, message.maskId);
+        sendResponse({ editMode: isEditMode, selectedMaskId });
+        return true;
+      }
+
+      if (message.type === MESSAGE_TYPES.SELECT_MASK) {
+        if (activeEditor) {
+          void activeEditor.flushPendingSave();
+        }
+        selectedMaskId = message.maskId;
+        ensureSelectedMask(currentPreset);
+        if (isEditMode) {
+          bindEditorToSelectedMask();
+        }
+        sendResponse({ selectedMaskId });
         return true;
       }
 
@@ -586,8 +675,8 @@ export default defineContentScript({
       window.addEventListener('yt-navigate-start', () => {
         navGeneration++;
         if (isEditMode) setEditMode(false);
-        if (playerEl) removeAllMasks(playerEl);
-        currentMaskEl = null;
+        clearAllMasksFromDOM();
+        selectedMaskId = null;
       });
       window.addEventListener('yt-navigate-finish', handleNavigation);
 

@@ -58,10 +58,42 @@
           </label>
         </div>
 
+        <!-- Profile Selector Bar -->
+        <div class="profile-section">
+          <div class="profile-bar">
+            <label class="control-label" for="profile-select" data-i18n="profileLabel">Profile</label>
+            <div class="profile-controls">
+              <select id="profile-select" class="profile-select"></select>
+              <button type="button" class="btn-icon" id="btn-profile-add" data-i18n-attr="title:addProfileTitle" title="Add new profile">+</button>
+              <button type="button" class="btn-icon" id="btn-profile-rename" data-i18n-attr="title:renameProfileTitle" title="Rename profile">✎</button>
+              <button type="button" class="btn-icon btn-icon-danger" id="btn-profile-delete" data-i18n-attr="title:deleteProfileTitle" title="Delete current profile">🗑</button>
+            </div>
+          </div>
+
+          <!-- Inline Profile Name Editor -->
+          <div id="profile-inline-editor" class="profile-inline-editor hidden">
+            <input type="text" id="input-profile-name" class="profile-name-input" maxlength="30" data-i18n-placeholder="profileNamePlaceholder" placeholder="Profile name...">
+            <button type="button" class="btn-icon btn-icon-accent" id="btn-profile-save" data-i18n-attr="title:save" title="Save">✓</button>
+            <button type="button" class="btn-icon" id="btn-profile-cancel" data-i18n-attr="title:cancel" title="Cancel">✕</button>
+          </div>
+        </div>
+
         <!-- Mode Selector: View / Edit -->
         <div class="segmented-control">
           <button type="button" class="segment-btn active" id="btn-mode-view" data-i18n="modeView">View</button>
           <button type="button" class="segment-btn" id="btn-mode-edit" data-i18n="modeEdit">Edit</button>
+        </div>
+
+        <!-- Mask Selector Chips Bar -->
+        <div class="mask-selector-panel">
+          <div class="mask-selector-header">
+            <span class="control-label" data-i18n="maskListLabel">Masks</span>
+            <button type="button" class="btn-danger-text" id="btn-delete-mask" data-i18n="deleteSelectedMask">Delete Selected Mask</button>
+          </div>
+          <div class="mask-chips-row">
+            <div id="mask-chips-list" class="mask-chips-list"></div>
+            <button type="button" class="btn-chip btn-add-mask-chip" id="btn-add-mask-item" data-i18n="addMaskItemButton">+ Add</button>
+          </div>
         </div>
 
         <!-- Style Controls -->
@@ -99,9 +131,9 @@
           </div>
         </div>
 
-        <!-- Danger action: Delete -->
+        <!-- Danger action: Delete Channel Preset -->
         <div class="actions-row">
-          <button type="button" class="btn-danger-text" id="btn-delete-preset" data-i18n="deletePreset">Delete Mask</button>
+          <button type="button" class="btn-danger-text" id="btn-delete-preset" data-i18n="deletePresetAll">Delete Channel Preset</button>
         </div>
       </div>
     </main>
