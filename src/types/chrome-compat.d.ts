@@ -21,6 +21,9 @@ export interface ChromeCompat {
     query?: typeof browser.tabs.query;
     sendMessage?: typeof browser.tabs.sendMessage;
   };
+  commands?: {
+    onCommand?: typeof browser.commands.onCommand;
+  };
   i18n?: {
     getMessage?: typeof browser.i18n.getMessage;
   };

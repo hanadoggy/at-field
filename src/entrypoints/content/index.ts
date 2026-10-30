@@ -1,6 +1,10 @@
 import './style.css';
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { initChannelTracking, resolveChannel } from '../../content/channel';
+import {
+  initChannelTracking,
+  resolveChannel,
+  resolveChannelOnce,
+} from '../../content/channel';
 import { MaskEditor } from '../../content/editor';
 import { getExclusionReason, observeExclusions } from '../../content/exclusion';
 import {
@@ -30,6 +34,7 @@ function isAtfRequest(msg: unknown): msg is AtfRequest {
   return (
     type === MESSAGE_TYPES.GET_STATE ||
     type === MESSAGE_TYPES.SET_EDIT_MODE ||
+    type === MESSAGE_TYPES.TOGGLE_EDIT_MODE ||
     type === MESSAGE_TYPES.CREATE_PRESET
   );
 }
@@ -390,6 +395,67 @@ export default defineContentScript({
       if (message.type === MESSAGE_TYPES.SET_EDIT_MODE) {
         setEditMode(!!message.on);
         sendResponse({ editMode: isEditMode });
+        return true;
+      }
+
+      if (message.type === MESSAGE_TYPES.TOGGLE_EDIT_MODE) {
+        if (isEditMode) {
+          setEditMode(false);
+          sendResponse({ editMode: isEditMode });
+          return true;
+        }
+
+        const isWatch = window.location.pathname === '/watch';
+        const exclusionReason = getExclusionReason();
+        const globalEnabled = currentSettings
+          ? currentSettings.enabled !== false
+          : true;
+
+        if (!isWatch || exclusionReason !== null || !globalEnabled) {
+          sendResponse({ editMode: false });
+          return true;
+        }
+
+        (async () => {
+          if (!currentChannel) {
+            const quick = resolveChannelOnce();
+            if (quick) {
+              currentChannel = {
+                channelId: quick.channelId,
+                channelName: quick.channelName,
+              };
+            }
+          }
+          if (!currentChannel) {
+            sendResponse({ editMode: false });
+            return;
+          }
+
+          if (!currentPreset) {
+            currentPreset = await getPreset(currentChannel.channelId);
+          }
+
+          let createdPreset = false;
+          if (!currentPreset) {
+            const newPreset = createDefaultPreset(
+              currentChannel.channelId,
+              currentChannel.channelName,
+              currentSettings ? currentSettings.defaultStyle : undefined
+            );
+            currentPreset = await savePreset(newPreset);
+            createdPreset = true;
+          } else if (!currentPreset.enabled) {
+            currentPreset.enabled = true;
+            currentPreset = await savePreset(currentPreset);
+          }
+
+          await sync();
+          setEditMode(true);
+          sendResponse({
+            editMode: isEditMode,
+            ...(createdPreset ? { createdPreset: true } : {}),
+          });
+        })();
         return true;
       }
 

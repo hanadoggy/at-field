@@ -135,5 +135,66 @@
         "content": "$1"
       }
     }
+  },
+  "commandToggleEditMode": {
+    "message": "Toggle mask edit mode",
+    "description": "Keyboard shortcut description for toggling mask edit mode"
+  },
+  "backupSectionTitle": {
+    "message": "Backup & Restore",
+    "description": "Backup and restore section title"
+  },
+  "backupConflictPolicy": {
+    "message": "Import Mode",
+    "description": "Label for import conflict strategy selector"
+  },
+  "backupModeMerge": {
+    "message": "Merge (Keep Newer)",
+    "description": "Merge conflict resolution strategy"
+  },
+  "backupModeOverwrite": {
+    "message": "Overwrite All",
+    "description": "Overwrite all conflict resolution strategy"
+  },
+  "exportBackupButton": {
+    "message": "Export JSON",
+    "description": "Button to export backup JSON"
+  },
+  "importBackupButton": {
+    "message": "Import JSON",
+    "description": "Button to import backup JSON"
+  },
+  "overwriteConfirm": {
+    "message": "Overwrite mode will replace all existing channel presets with the backup file. Continue?",
+    "description": "Confirmation dialog before overwriting all presets"
+  },
+  "backupExportSuccess": {
+    "message": "Backup exported ($COUNT$ channel(s)).",
+    "description": "Status message when backup export succeeds",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "backupImportSuccess": {
+    "message": "Imported $IMPORTED$ channel(s) ($SKIPPED$ skipped).",
+    "description": "Status message when backup import succeeds",
+    "placeholders": {
+      "imported": {
+        "content": "$1"
+      },
+      "skipped": {
+        "content": "$2"
+      }
+    }
+  },
+  "backupErrorInvalid": {
+    "message": "Invalid backup file format.",
+    "description": "Error message when backup file is invalid"
+  },
+  "backupErrorVersion": {
+    "message": "Unsupported backup schema version. Please update A.T.Field.",
+    "description": "Error message when backup schemaVersion is newer than supported"
   }
 }

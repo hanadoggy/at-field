@@ -135,5 +135,66 @@
         "content": "$1"
       }
     }
+  },
+  "commandToggleEditMode": {
+    "message": "마스크 편집 모드 전환",
+    "description": "Keyboard shortcut description for toggling mask edit mode"
+  },
+  "backupSectionTitle": {
+    "message": "데이터 백업 및 복원",
+    "description": "Backup and restore section title"
+  },
+  "backupConflictPolicy": {
+    "message": "가져오기 방식",
+    "description": "Label for import conflict strategy selector"
+  },
+  "backupModeMerge": {
+    "message": "병합 (최신 우선)",
+    "description": "Merge conflict resolution strategy"
+  },
+  "backupModeOverwrite": {
+    "message": "전체 덮어쓰기",
+    "description": "Overwrite all conflict resolution strategy"
+  },
+  "exportBackupButton": {
+    "message": "JSON 내보내기",
+    "description": "Button to export backup JSON"
+  },
+  "importBackupButton": {
+    "message": "JSON 가져오기",
+    "description": "Button to import backup JSON"
+  },
+  "overwriteConfirm": {
+    "message": "전체 덮어쓰기 모드는 현재 저장된 모든 채널 마스크를 삭제하고 백업 파일로 교체합니다. 계속하시겠습니까?",
+    "description": "Confirmation dialog before overwriting all presets"
+  },
+  "backupExportSuccess": {
+    "message": "백업 파일을 내보냈습니다 ($COUNT$개 채널).",
+    "description": "Status message when backup export succeeds",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "backupImportSuccess": {
+    "message": "$IMPORTED$개 채널을 가져왔습니다 ($SKIPPED$개 건너뜀).",
+    "description": "Status message when backup import succeeds",
+    "placeholders": {
+      "imported": {
+        "content": "$1"
+      },
+      "skipped": {
+        "content": "$2"
+      }
+    }
+  },
+  "backupErrorInvalid": {
+    "message": "유효하지 않은 백업 파일 형식입니다.",
+    "description": "Error message when backup file is invalid"
+  },
+  "backupErrorVersion": {
+    "message": "지원하지 않는 상위 버전의 백업 파일입니다. 확장 기능을 업데이트해주세요.",
+    "description": "Error message when backup schemaVersion is newer than supported"
   }
 }

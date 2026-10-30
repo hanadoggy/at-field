@@ -29,5 +29,14 @@ export default defineConfig({
       default_title: '__MSG_extName__',
       default_icon: { 48: 'icons/icon.svg', 96: 'icons/icon.svg' },
     },
+    commands: {
+      'toggle-edit-mode': {
+        suggested_key: {
+          default: 'Ctrl+Shift+M',
+          mac: 'Command+Shift+M',
+        },
+        description: '__MSG_commandToggleEditMode__',
+      },
+    },
   }),
 });

@@ -1,6 +1,8 @@
 import type { Rect, Settings } from '../types/schema';
 
 export const SCHEMA_VERSION = 1;
+export const BACKUP_FORMAT = 'atfield-backup' as const;
+export const COMMAND_TOGGLE_EDIT_MODE = 'toggle-edit-mode' as const;
 export const CHANNEL_KEY_PREFIX = 'ch:';
 export const META_KEY = 'meta';
 export const SETTINGS_KEY = 'settings';
